@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}History - Israeli Lottery Predictor{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1>Lottery Results History</h1>
+    <p>Viewing {{ total_results }} historical draws</p>
+
+    <div class="results-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Draw #</th>
+                    <th>Date</th>
+                    <th>Main Numbers</th>
+                    <th>Strong #</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td><strong>{{ result[0] }}</strong></td>
+                    <td>{{ result[1] }}</td>
+                    <td>
+                        <div class="lottery-numbers">
+                            <span class="ball">{{ result[2] }}</span>
+                            <span class="ball">{{ result[3] }}</span>
+                            <span class="ball">{{ result[4] }}</span>
+                            <span class="ball">{{ result[5] }}</span>
+                            <span class="ball">{{ result[6] }}</span>
+                            <span class="ball">{{ result[7] }}</span>
+                        </div>
+                    </td>
+                    <td><span class="ball strong">{{ result[8] }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        {% if page > 1 %}
+        <a href="{{ url_for('history', page=page-1) }}" class="btn btn-secondary">← Previous</a>
+        {% endif %}
+        
+        <span class="page-info">Page {{ page }} of {{ total_pages }}</span>
+        
+        {% if page < total_pages %}
+        <a href="{{ url_for('history', page=page+1) }}" class="btn btn-secondary">Next →</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+

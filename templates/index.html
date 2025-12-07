@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Israeli Lottery Predictor{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>Welcome to Israeli Lottery Predictor</h1>
+    <p>Advanced AI-powered predictions for the Israeli Lottery</p>
+    <div class="hero-stats">
+        <div class="stat-card">
+            <h3>{{ total_results }}</h3>
+            <p>Draws (Last 4 Years)</p>
+        </div>
+        <div class="stat-card">
+            <h3>5</h3>
+            <p>Prediction Strategies</p>
+        </div>
+        <div class="stat-card">
+            <h3>37</h3>
+            <p>Main Numbers (1-37)</p>
+        </div>
+        <div class="stat-card">
+            <h3>7</h3>
+            <p>Strong Numbers (1-7)</p>
+        </div>
+    </div>
+    <div class="cta-buttons">
+        <a href="{{ url_for('predict') }}" class="btn btn-primary">Get Predictions</a>
+        <a href="{{ url_for('statistics') }}" class="btn btn-secondary">View Statistics</a>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Latest Lottery Results</h2>
+    <div class="results-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>Draw #</th>
+                    <th>Date</th>
+                    <th>Numbers</th>
+                    <th>Strong #</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in latest_results %}
+                <tr>
+                    <td><strong>{{ result[0] }}</strong></td>
+                    <td>{{ result[1] }}</td>
+                    <td>
+                        <div class="lottery-numbers">
+                            <span class="ball">{{ result[2] }}</span>
+                            <span class="ball">{{ result[3] }}</span>
+                            <span class="ball">{{ result[4] }}</span>
+                            <span class="ball">{{ result[5] }}</span>
+                            <span class="ball">{{ result[6] }}</span>
+                            <span class="ball">{{ result[7] }}</span>
+                        </div>
+                    </td>
+                    <td><span class="ball strong">{{ result[8] }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div style="text-align: center; margin-top: 20px;">
+        <a href="{{ url_for('history') }}" class="btn btn-secondary">View All Results</a>
+    </div>
+</div>
+
+<div class="section">
+    <h2>How It Works</h2>
+    <div class="info-grid">
+        <div class="info-card">
+            <h3>📊 Data Analysis</h3>
+            <p>We analyze {{ total_results }} lottery draws from the last 4 years to identify patterns and trends.</p>
+        </div>
+        <div class="info-card">
+            <h3>🔥 Hot & Cold Numbers</h3>
+            <p>Track which numbers appear frequently (hot) and which are overdue (cold).</p>
+        </div>
+        <div class="info-card">
+            <h3>🎯 Multiple Strategies</h3>
+            <p>5 different prediction algorithms including frequency-based, balanced, and pattern analysis.</p>
+        </div>
+        <div class="info-card">
+            <h3>📈 Real-time Updates</h3>
+            <p>Add new lottery results and get updated predictions based on the latest data.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

@@ -18,7 +18,14 @@
     </div>
     {% endif %}
 
-    <form method="POST" class="add-result-form">
+    <div class="fetch-section">
+        <h3>🌐 Fetch from Official Website</h3>
+        <p>Automatically fill the form with the latest result from <a href="https://lottosheli.co.il/results/lotto" target="_blank">lottosheli.co.il</a></p>
+        <button type="button" class="btn btn-secondary" onclick="fetchLatestResult()">Fetch Latest Result</button>
+        <div id="fetch-status"></div>
+    </div>
+
+    <form method="POST" class="add-result-form" id="addResultForm">
         <div class="form-group">
             <label for="draw_number">Draw Number:</label>
             <input type="number" id="draw_number" name="draw_number" 
@@ -94,6 +101,43 @@
 <script>
     // Set today's date as default
     document.getElementById('draw_date').valueAsDate = new Date();
+    
+    // Fetch latest result from official website
+    function fetchLatestResult() {
+        const statusDiv = document.getElementById('fetch-status');
+        statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Fetching latest result...</p>';
+        
+        fetch('/api/fetch_latest')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const result = data.data;
+                    
+                    // Fill the form
+                    document.getElementById('draw_number').value = result.draw_number;
+                    
+                    // Parse and set date (DD/MM/YYYY to YYYY-MM-DD)
+                    const dateParts = result.date.split('/');
+                    const dateFormatted = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                    document.getElementById('draw_date').value = dateFormatted;
+                    
+                    // Fill numbers
+                    result.numbers.forEach((num, index) => {
+                        document.getElementById(`number${index + 1}`).value = num;
+                    });
+                    
+                    document.getElementById('strong_number').value = result.strong_number;
+                    
+                    statusDiv.innerHTML = `<p style="color: #28a745;">✓ Successfully fetched Draw #${result.draw_number} (${result.date})</p>`;
+                } else {
+                    statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Failed to fetch result. Please enter manually.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Error fetching result. Please enter manually.</p>';
+            });
+    }
 </script>
 {% endblock %}
 

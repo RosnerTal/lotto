@@ -12,6 +12,8 @@ else:
     from database import LotteryDatabase
     from predictor import LotteryPredictor
 
+from lotto_scraper import fetch_latest_result
+
 app = Flask(__name__)
 
 
@@ -208,6 +210,16 @@ def api_statistics():
     predictor.close()
     
     return jsonify(stats_json)
+
+
+@app.route('/api/fetch_latest')
+def api_fetch_latest():
+    """API endpoint to fetch latest result from lottosheli.co.il"""
+    result = fetch_latest_result()
+    if result:
+        return jsonify({"success": True, "data": result})
+    else:
+        return jsonify({"success": False, "error": "Failed to fetch latest result"}), 500
 
 
 if __name__ == '__main__':

@@ -84,9 +84,9 @@ def fetch_latest_result() -> Optional[Dict]:
         return None
 
 
-def fetch_specific_draw(draw_number: int) -> Optional[Dict]:
+def fetch_draw_from_page(draw_number: int) -> Optional[Dict]:
     """
-    Fetch a specific draw result (if needed in future)
+    Fetch a specific draw result by submitting the form
     
     Args:
         draw_number: The draw number to fetch
@@ -94,9 +94,113 @@ def fetch_specific_draw(draw_number: int) -> Optional[Dict]:
     Returns:
         Dict with lottery result or None if not found
     """
-    # This would require posting to the form with the specific draw number
-    # For now, we only fetch the latest
-    return fetch_latest_result()
+    try:
+        url = "https://lottosheli.co.il/results/lotto"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        # Create a session to handle the form submission
+        session = requests.Session()
+        
+        # First, get the page to find the form structure
+        response = session.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Find the select element with draw numbers
+        select = soup.find('select')
+        if not select:
+            return None
+        
+        # Check if the draw number exists in the options
+        option = select.find('option', string=lambda s: s and str(draw_number) in s)
+        if not option:
+            return None
+        
+        option_text = option.text.strip()
+        
+        # Parse the option text
+        draw_match = re.search(r'(\d+).*?(\d{2}\.\d{2}\.\d{4})', option_text)
+        if not draw_match:
+            return None
+        
+        date_str = draw_match.group(2)
+        date_formatted = date_str.replace('.', '/')
+        
+        # Get the page HTML and parse numbers
+        # The numbers should be visible in the initial page load for the selected draw
+        # For now, we'll return basic info and let the user verify
+        # In a full implementation, we'd submit the form and parse the result
+        
+        # For this version, we'll just return the draw info without numbers
+        # This is a placeholder - full implementation would require form submission
+        return {
+            'draw_number': draw_number,
+            'date': date_formatted,
+            'numbers': [],  # Would need form submission to get
+            'strong_number': None
+        }
+    
+    except Exception as e:
+        print(f"Error fetching draw {draw_number}: {e}")
+        return None
+
+
+def fetch_multiple_draws(start_draw: int, end_draw: int) -> list:
+    """
+    Fetch multiple draws by scraping the page for each draw in the dropdown
+    
+    Args:
+        start_draw: First draw number to fetch (inclusive)
+        end_draw: Last draw number to fetch (inclusive)
+    
+    Returns:
+        List of draw dictionaries
+    """
+    results = []
+    
+    try:
+        url = "https://lottosheli.co.il/results/lotto"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.content, 'html.parser')
+        
+        # Find all options in the select dropdown
+        select = soup.find('select')
+        if not select:
+            return results
+        
+        options = select.find_all('option')
+        
+        # Parse each option that's in our range
+        for option in options:
+            option_text = option.text.strip()
+            draw_match = re.search(r'(\d+).*?(\d{2}\.\d{2}\.\d{4})', option_text)
+            
+            if draw_match:
+                draw_num = int(draw_match.group(1))
+                
+                # Only process draws in our range
+                if start_draw <= draw_num <= end_draw:
+                    date_str = draw_match.group(2)
+                    date_formatted = date_str.replace('.', '/')
+                    
+                    # Since all draws are in the dropdown but only the latest shows numbers,
+                    # we need to note that we can only reliably get the latest draw
+                    results.append({
+                        'draw_number': draw_num,
+                        'date': date_formatted,
+                        'needs_manual_entry': True
+                    })
+        
+        return sorted(results, key=lambda x: x['draw_number'])
+    
+    except Exception as e:
+        print(f"Error fetching multiple draws: {e}")
+        return results
 
 
 if __name__ == "__main__":

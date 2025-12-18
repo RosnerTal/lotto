@@ -222,6 +222,91 @@ def api_fetch_latest():
         return jsonify({"success": False, "error": "Failed to fetch latest result"}), 500
 
 
+@app.route('/api/check_missing')
+def api_check_missing():
+    """Check for missing draws between last DB entry and latest online"""
+    db = LotteryDatabase()
+    db.connect()
+    
+    latest_in_db = db.get_latest_draw_number()
+    if not latest_in_db:
+        latest_in_db = 0
+    
+    db.close()
+    
+    # Fetch latest from website
+    latest_result = fetch_latest_result()
+    if not latest_result:
+        return jsonify({"success": False, "error": "Failed to fetch latest from website"}), 500
+    
+    latest_online = latest_result['draw_number']
+    
+    missing_draws = []
+    if latest_online > latest_in_db:
+        missing_draws = list(range(latest_in_db + 1, latest_online + 1))
+    
+    return jsonify({
+        "success": True,
+        "latest_in_db": latest_in_db,
+        "latest_online": latest_online,
+        "missing_draws": missing_draws,
+        "count": len(missing_draws)
+    })
+
+
+@app.route('/import_missing', methods=['POST'])
+def import_missing():
+    """Import all missing draws (password protected)"""
+    ADD_RESULT_PASSWORD = "Xhknrhkhui"
+    
+    password = request.form.get('password', '')
+    if password != ADD_RESULT_PASSWORD:
+        return jsonify({"success": False, "error": "Incorrect password"}), 403
+    
+    db = LotteryDatabase()
+    db.connect()
+    
+    latest_in_db = db.get_latest_draw_number()
+    if not latest_in_db:
+        latest_in_db = 0
+    
+    # Fetch latest from website
+    latest_result = fetch_latest_result()
+    if not latest_result:
+        db.close()
+        return jsonify({"success": False, "error": "Failed to fetch from website"}), 500
+    
+    latest_online = latest_result['draw_number']
+    
+    # For now, we can only auto-import the latest draw
+    # Others would need manual entry since the website only shows one at a time
+    imported = []
+    
+    if latest_online > latest_in_db:
+        # Import the latest draw
+        success = db.add_result(
+            latest_result['draw_number'],
+            latest_result['date'],
+            latest_result['numbers'],
+            latest_result['strong_number']
+        )
+        
+        if success:
+            imported.append(latest_result['draw_number'])
+    
+    db.close()
+    
+    missing_count = latest_online - latest_in_db
+    
+    return jsonify({
+        "success": True,
+        "imported": imported,
+        "imported_count": len(imported),
+        "still_missing": list(range(latest_in_db + 1, latest_online)) if latest_online > latest_in_db + 1 else [],
+        "message": f"Imported {len(imported)} draw(s). {missing_count - len(imported)} still need manual entry."
+    })
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 

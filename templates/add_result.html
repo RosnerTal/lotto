@@ -19,9 +19,24 @@
     {% endif %}
 
     <div class="fetch-section">
-        <h3>🌐 Fetch from Official Website</h3>
-        <p>Automatically fill the form with the latest result from <a href="https://lottosheli.co.il/results/lotto" target="_blank">lottosheli.co.il</a></p>
-        <button type="button" class="btn btn-secondary" onclick="fetchLatestResult()">Fetch Latest Result</button>
+        <h3>🌐 Auto-Import Missing Results</h3>
+        <p>Check for missing lottery results from <a href="https://lottosheli.co.il/results/lotto" target="_blank">lottosheli.co.il</a></p>
+        
+        <div style="margin-bottom: 1rem;">
+            <button type="button" class="btn btn-secondary" onclick="checkMissing()">Check Missing Results</button>
+            <button type="button" class="btn btn-secondary" onclick="fetchLatestResult()">Fetch Latest Only</button>
+        </div>
+        
+        <div id="missing-info" style="display: none; margin-top: 1rem;">
+            <div id="missing-summary"></div>
+            <div style="margin-top: 1rem;">
+                <label for="import-password" style="display: block; margin-bottom: 0.5rem;">Password to import:</label>
+                <input type="password" id="import-password" placeholder="Enter password" 
+                       style="padding: 8px; border: 2px solid #17a2b8; border-radius: 5px; width: 200px; margin-right: 10px;">
+                <button type="button" class="btn btn-primary" onclick="importMissing()">Import Latest Draw</button>
+            </div>
+        </div>
+        
         <div id="fetch-status"></div>
     </div>
 
@@ -102,7 +117,91 @@
     // Set today's date as default
     document.getElementById('draw_date').valueAsDate = new Date();
     
-    // Fetch latest result from official website
+    // Check for missing draws
+    function checkMissing() {
+        const statusDiv = document.getElementById('fetch-status');
+        const missingInfo = document.getElementById('missing-info');
+        const missingSummary = document.getElementById('missing-summary');
+        
+        statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Checking for missing results...</p>';
+        missingInfo.style.display = 'none';
+        
+        fetch('/api/check_missing')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.count === 0) {
+                        statusDiv.innerHTML = '<p style="color: #28a745;">✓ No missing draws! Your database is up to date.</p>';
+                    } else {
+                        statusDiv.innerHTML = '';
+                        missingSummary.innerHTML = `
+                            <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; border: 2px solid #ffc107;">
+                                <h4 style="color: #856404; margin-top: 0;">⚠️ Missing ${data.count} Draw(s)</h4>
+                                <p style="color: #856404;">Last in database: Draw #${data.latest_in_db}</p>
+                                <p style="color: #856404;">Latest online: Draw #${data.latest_online}</p>
+                                <p style="color: #856404;"><strong>Missing:</strong> ${data.missing_draws.join(', ')}</p>
+                                <p style="color: #856404; font-size: 0.9em; margin-bottom: 0;">
+                                    Note: The system can auto-import the latest draw only. 
+                                    Others need manual entry.
+                                </p>
+                            </div>
+                        `;
+                        missingInfo.style.display = 'block';
+                    }
+                } else {
+                    statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Error checking missing draws.</p>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Error checking missing draws.</p>';
+            });
+    }
+    
+    // Import missing draws
+    function importMissing() {
+        const password = document.getElementById('import-password').value;
+        const statusDiv = document.getElementById('fetch-status');
+        
+        if (!password) {
+            statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Please enter password.</p>';
+            return;
+        }
+        
+        statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Importing latest draw...</p>';
+        
+        const formData = new FormData();
+        formData.append('password', password);
+        
+        fetch('/import_missing', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    let message = `<p style="color: #28a745;">✓ ${data.message}</p>`;
+                    if (data.imported.length > 0) {
+                        message += `<p style="color: #28a745;">Imported: Draw #${data.imported.join(', #')}</p>`;
+                    }
+                    if (data.still_missing.length > 0) {
+                        message += `<p style="color: #ffc107;">⚠️ Still missing (manual entry needed): ${data.still_missing.join(', ')}</p>`;
+                    }
+                    statusDiv.innerHTML = message;
+                    
+                    // Refresh the missing check after 2 seconds
+                    setTimeout(checkMissing, 2000);
+                } else {
+                    statusDiv.innerHTML = `<p style="color: #dc3545;">✗ ${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Error importing draws.</p>';
+            });
+    }
+    
+    // Fetch latest result from official website (manual form fill)
     function fetchLatestResult() {
         const statusDiv = document.getElementById('fetch-status');
         statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Fetching latest result...</p>';
@@ -128,7 +227,10 @@
                     
                     document.getElementById('strong_number').value = result.strong_number;
                     
-                    statusDiv.innerHTML = `<p style="color: #28a745;">✓ Successfully fetched Draw #${result.draw_number} (${result.date})</p>`;
+                    statusDiv.innerHTML = `<p style="color: #28a745;">✓ Form filled with Draw #${result.draw_number} (${result.date}). Enter password below to save.</p>`;
+                    
+                    // Scroll to the form
+                    document.getElementById('addResultForm').scrollIntoView({ behavior: 'smooth' });
                 } else {
                     statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Failed to fetch result. Please enter manually.</p>';
                 }

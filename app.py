@@ -254,87 +254,38 @@ def api_check_missing():
     })
 
 
-@app.route('/import_specific', methods=['POST'])
-def import_specific():
-    """Import a specific draw number (password protected)"""
-    ADD_RESULT_PASSWORD = "Xhknrhkhui"
+@app.route('/get_draw_info', methods=['GET'])
+def get_draw_info():
+    """Get draw date info from dropdown (doesn't fetch actual numbers)"""
+    draw_number = request.args.get('draw_number', type=int)
     
-    password = request.form.get('password', '')
-    if password != ADD_RESULT_PASSWORD:
-        return jsonify({"success": False, "error": "Incorrect password"}), 403
-    
-    try:
-        draw_number = int(request.form.get('draw_number', 0))
-        if draw_number <= 0:
-            return jsonify({"success": False, "error": "Invalid draw number"}), 400
-    except ValueError:
+    if not draw_number or draw_number <= 0:
         return jsonify({"success": False, "error": "Invalid draw number"}), 400
     
     from lotto_scraper import fetch_draw_result
     
-    # Check if draw already exists
-    db = LotteryDatabase()
-    db.connect()
-    
-    # Try to fetch it
+    # Fetch to get date only (numbers will be wrong for historical draws)
     result = fetch_draw_result(draw_number)
     
-    if not result:
-        db.close()
+    if result:
         return jsonify({
-            "success": False, 
-            "error": f"Failed to fetch draw #{draw_number} from website. It may not exist or the website structure changed."
-        }), 500
-    
-    # Check if already in database
-    existing = db.get_latest_results(limit=1000)  # Get a large set to search
-    existing_numbers = [r[0] for r in existing]
-    
-    if draw_number in existing_numbers:
-        db.close()
-        return jsonify({
-            "success": False,
-            "error": f"Draw #{draw_number} already exists in database!"
-        }), 400
-    
-    # Import the draw
-    try:
-        success = db.add_result(
-            result['draw_number'],
-            result['date'],
-            result['numbers'],
-            result['strong_number']
-        )
-        
-        db.close()
-        
-        if success:
-            return jsonify({
-                "success": True,
-                "imported": draw_number,
-                "date": result['date'],
-                "numbers": result['numbers'],
-                "strong_number": result['strong_number'],
-                "message": f"Successfully imported draw #{draw_number}"
-            })
-        else:
-            return jsonify({"success": False, "error": "Failed to save to database"}), 500
-            
-    except Exception as e:
-        db.close()
-        return jsonify({"success": False, "error": f"Error: {str(e)}"}), 500
+            "success": True,
+            "draw_number": result['draw_number'],
+            "date": result['date'],
+            "note": "Numbers must be entered manually for historical draws"
+        })
+    else:
+        return jsonify({"success": False, "error": "Draw not found"}), 404
 
 
 @app.route('/import_missing', methods=['POST'])
 def import_missing():
-    """Import all missing draws (password protected)"""
+    """Import only the latest draw (password protected)"""
     ADD_RESULT_PASSWORD = "Xhknrhkhui"
     
     password = request.form.get('password', '')
     if password != ADD_RESULT_PASSWORD:
         return jsonify({"success": False, "error": "Incorrect password"}), 403
-    
-    from lotto_scraper import fetch_missing_draws
     
     db = LotteryDatabase()
     db.connect()
@@ -343,7 +294,7 @@ def import_missing():
     if not latest_in_db:
         latest_in_db = 0
     
-    # Fetch latest from website to know the range
+    # Fetch latest from website
     latest_result = fetch_latest_result()
     if not latest_result:
         db.close()
@@ -351,69 +302,42 @@ def import_missing():
     
     latest_online = latest_result['draw_number']
     
-    # Get list of missing draw numbers
-    missing_draws = list(range(latest_in_db + 1, latest_online + 1))
-    
-    if not missing_draws:
+    # Check if already up to date
+    if latest_online <= latest_in_db:
         db.close()
         return jsonify({
             "success": True,
             "imported": [],
             "imported_count": 0,
-            "failed": [],
-            "message": "No missing draws to import!"
+            "message": "Database is already up to date!"
         })
     
-    # Fetch all missing draws
-    print(f"Attempting to fetch {len(missing_draws)} missing draws: {missing_draws}")
-    fetched_results = fetch_missing_draws(missing_draws)
-    
-    # Import each fetched result
-    imported = []
-    failed = []
-    
-    for result in fetched_results:
-        try:
-            success = db.add_result(
-                result['draw_number'],
-                result['date'],
-                result['numbers'],
-                result['strong_number']
-            )
+    # Import ONLY the latest draw (the website can only show current draw's numbers)
+    try:
+        success = db.add_result(
+            latest_result['draw_number'],
+            latest_result['date'],
+            latest_result['numbers'],
+            latest_result['strong_number']
+        )
+        
+        db.close()
+        
+        if success:
+            still_missing = list(range(latest_in_db + 1, latest_online))
+            return jsonify({
+                "success": True,
+                "imported": [latest_result['draw_number']],
+                "imported_count": 1,
+                "still_missing": still_missing,
+                "message": f"Imported latest draw #{latest_result['draw_number']}. {len(still_missing)} older draw(s) need manual entry."
+            })
+        else:
+            return jsonify({"success": False, "error": "Failed to save to database"}), 500
             
-            if success:
-                imported.append(result['draw_number'])
-                print(f"  ✓ Imported draw #{result['draw_number']}")
-            else:
-                failed.append(result['draw_number'])
-                print(f"  ✗ Failed to import draw #{result['draw_number']}")
-        except Exception as e:
-            failed.append(result['draw_number'])
-            print(f"  ✗ Error importing draw #{result['draw_number']}: {e}")
-    
-    # Check if there are any that couldn't be fetched
-    fetched_numbers = [r['draw_number'] for r in fetched_results]
-    couldnt_fetch = [d for d in missing_draws if d not in fetched_numbers]
-    
-    db.close()
-    
-    message_parts = []
-    if imported:
-        message_parts.append(f"Successfully imported {len(imported)} draw(s)")
-    if failed:
-        message_parts.append(f"{len(failed)} failed to save")
-    if couldnt_fetch:
-        message_parts.append(f"{len(couldnt_fetch)} couldn't be fetched")
-    
-    message = ". ".join(message_parts) + "."
-    
-    return jsonify({
-        "success": True,
-        "imported": imported,
-        "imported_count": len(imported),
-        "failed": failed + couldnt_fetch,
-        "message": message
-    })
+    except Exception as e:
+        db.close()
+        return jsonify({"success": False, "error": f"Error: {str(e)}"}), 500
 
 
 if __name__ == '__main__':

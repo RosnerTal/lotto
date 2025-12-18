@@ -33,7 +33,7 @@
                 <label for="import-password" style="display: block; margin-bottom: 0.5rem;">Password to import:</label>
                 <input type="password" id="import-password" placeholder="Enter password" 
                        style="padding: 8px; border: 2px solid #17a2b8; border-radius: 5px; width: 200px; margin-right: 10px;">
-                <button type="button" class="btn btn-primary" onclick="importMissing()">Import Latest Draw</button>
+                <button type="button" class="btn btn-primary" onclick="importMissing()">Import All Missing Draws</button>
             </div>
         </div>
         
@@ -141,8 +141,7 @@
                                 <p style="color: #856404;">Latest online: Draw #${data.latest_online}</p>
                                 <p style="color: #856404;"><strong>Missing:</strong> ${data.missing_draws.join(', ')}</p>
                                 <p style="color: #856404; font-size: 0.9em; margin-bottom: 0;">
-                                    Note: The system can auto-import the latest draw only. 
-                                    Others need manual entry.
+                                    Click "Import All Missing Draws" to automatically fetch and import all of them.
                                 </p>
                             </div>
                         `;
@@ -168,7 +167,7 @@
             return;
         }
         
-        statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Importing latest draw...</p>';
+        statusDiv.innerHTML = '<p style="color: #667eea;">⏳ Fetching and importing all missing draws... This may take a moment...</p>';
         
         const formData = new FormData();
         formData.append('password', password);
@@ -182,10 +181,10 @@
                 if (data.success) {
                     let message = `<p style="color: #28a745;">✓ ${data.message}</p>`;
                     if (data.imported.length > 0) {
-                        message += `<p style="color: #28a745;">Imported: Draw #${data.imported.join(', #')}</p>`;
+                        message += `<p style="color: #28a745;"><strong>Successfully imported:</strong> Draw #${data.imported.join(', #')}</p>`;
                     }
-                    if (data.still_missing.length > 0) {
-                        message += `<p style="color: #ffc107;">⚠️ Still missing (manual entry needed): ${data.still_missing.join(', ')}</p>`;
+                    if (data.failed && data.failed.length > 0) {
+                        message += `<p style="color: #dc3545;"><strong>Failed:</strong> Draw #${data.failed.join(', #')}</p>`;
                     }
                     statusDiv.innerHTML = message;
                     

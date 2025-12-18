@@ -7,58 +7,83 @@ from typing import Optional, Dict
 import re
 
 
-def fetch_latest_result() -> Optional[Dict]:
+def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
     """
-    Fetch the latest lottery result from lottosheli.co.il
+    Fetch a lottery result from lottosheli.co.il
+    
+    Args:
+        draw_number: Specific draw to fetch, or None for latest
     
     Returns:
         Dict with keys: draw_number, date, numbers (list of 6), strong_number
         None if fetch fails
     """
     try:
-        url = "https://lottosheli.co.il/results/lotto"
+        # The URL pattern for accessing specific draws
+        # We need to check if they have a direct URL or if we need to use query params
+        base_url = "https://lottosheli.co.il/results/lotto"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
+        session = requests.Session()
+        response = session.get(base_url, headers=headers, timeout=15)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Find the dropdown with draw numbers (first option is the latest)
+        # Find the dropdown with draw numbers
         select = soup.find('select')
         if not select:
             return None
         
-        # Get the first option (latest draw)
-        first_option = select.find('option')
-        if not first_option:
+        # If no specific draw requested, get the first (latest)
+        if draw_number is None:
+            target_option = select.find('option')
+        else:
+            # Find the option for the specific draw number
+            target_option = None
+            for option in select.find_all('option'):
+                if str(draw_number) in option.text:
+                    target_option = option
+                    break
+        
+        if not target_option:
             return None
         
-        option_text = first_option.text.strip()
+        option_text = target_option.text.strip()
+        option_value = target_option.get('value', '')
         
         # Parse: "מספר הגרלה: 3878 תאריך: 16.12.2025"
         draw_match = re.search(r'(\d+).*?(\d{2}\.\d{2}\.\d{4})', option_text)
         if not draw_match:
             return None
         
-        draw_number = int(draw_match.group(1))
+        found_draw_number = int(draw_match.group(1))
         date_str = draw_match.group(2)  # DD.MM.YYYY
-        
-        # Convert date from DD.MM.YYYY to DD/MM/YYYY
         date_formatted = date_str.replace('.', '/')
         
+        # If requesting a specific draw, we need to submit the form or reload with params
+        # Try to get the result by submitting a form or using query parameters
+        if draw_number and found_draw_number == draw_number and option_value:
+            # Try to get the specific draw by posting or using query params
+            try:
+                # Some sites use POST to change the selected draw
+                form_data = {'draw_select': option_value}
+                response2 = session.post(base_url, data=form_data, headers=headers, timeout=15)
+                if response2.status_code == 200:
+                    soup = BeautifulSoup(response2.content, 'html.parser')
+            except:
+                pass  # If POST fails, continue with current page
+        
         # Find the lottery balls (numbers displayed on page)
-        # Look for divs or spans with the numbers
         numbers = []
         strong_number = None
         
-        # Try to find number elements - they're usually in specific classes or containers
-        # The structure shows numbers like: 33 28 25 23 5 1 and EXTRA: 2
+        # Try to find number elements
         number_elements = soup.find_all(string=re.compile(r'^\d+$'))
         
-        # Filter to get just the lottery numbers (looking for numbers 1-37)
+        # Filter to get lottery numbers
         for elem in number_elements:
             num_text = elem.strip()
             if num_text.isdigit():
@@ -73,7 +98,7 @@ def fetch_latest_result() -> Optional[Dict]:
             return None
         
         return {
-            'draw_number': draw_number,
+            'draw_number': found_draw_number,
             'date': date_formatted,
             'numbers': numbers,
             'strong_number': strong_number
@@ -82,6 +107,11 @@ def fetch_latest_result() -> Optional[Dict]:
     except Exception as e:
         print(f"Error fetching lottery results: {e}")
         return None
+
+
+def fetch_latest_result() -> Optional[Dict]:
+    """Fetch the latest lottery result."""
+    return fetch_draw_result(None)
 
 
 def fetch_draw_from_page(draw_number: int) -> Optional[Dict]:
@@ -144,6 +174,35 @@ def fetch_draw_from_page(draw_number: int) -> Optional[Dict]:
     except Exception as e:
         print(f"Error fetching draw {draw_number}: {e}")
         return None
+
+
+def fetch_missing_draws(missing_draw_numbers: list) -> list:
+    """
+    Fetch multiple specific draw numbers
+    
+    Args:
+        missing_draw_numbers: List of draw numbers to fetch
+    
+    Returns:
+        List of successfully fetched draw dictionaries
+    """
+    results = []
+    
+    for draw_num in missing_draw_numbers:
+        print(f"Fetching draw #{draw_num}...")
+        result = fetch_draw_result(draw_num)
+        
+        if result:
+            results.append(result)
+            print(f"  ✓ Successfully fetched draw #{draw_num}")
+        else:
+            print(f"  ✗ Failed to fetch draw #{draw_num}")
+        
+        # Small delay to be polite to the server
+        import time
+        time.sleep(0.5)
+    
+    return results
 
 
 def fetch_multiple_draws(start_draw: int, end_draw: int) -> list:

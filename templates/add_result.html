@@ -19,12 +19,12 @@
     {% endif %}
 
     <div class="fetch-section">
-        <h3>🌐 Auto-Import Missing Results</h3>
-        <p>Check for missing lottery results from <a href="https://lottosheli.co.il/results/lotto" target="_blank">lottosheli.co.il</a></p>
+        <h3>🌐 Auto-Import Results</h3>
+        <p>Automatically import lottery results from <a href="https://lottosheli.co.il/results/lotto" target="_blank">lottosheli.co.il</a></p>
         
         <div style="margin-bottom: 1rem;">
             <button type="button" class="btn btn-secondary" onclick="checkMissing()">Check Missing Results</button>
-            <button type="button" class="btn btn-secondary" onclick="fetchLatestResult()">Fetch Latest Only</button>
+            <button type="button" class="btn btn-secondary" onclick="fetchLatestResult()">Fetch Latest to Form</button>
         </div>
         
         <div id="missing-info" style="display: none; margin-top: 1rem;">
@@ -38,6 +38,29 @@
         </div>
         
         <div id="fetch-status"></div>
+    </div>
+
+    <div class="fetch-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-color: #4caf50;">
+        <h3 style="color: #1b5e20;">🎯 Import Specific Draw</h3>
+        <p style="color: #2e7d32;">Enter a specific draw number to fetch and import it directly</p>
+        
+        <div style="display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 1rem;">
+            <div>
+                <label for="specific-draw" style="display: block; margin-bottom: 0.5rem; color: #1b5e20; font-weight: 600;">Draw Number:</label>
+                <input type="number" id="specific-draw" placeholder="e.g., 3876" 
+                       style="padding: 8px; border: 2px solid #4caf50; border-radius: 5px; width: 120px;" min="1">
+            </div>
+            <div>
+                <label for="specific-password" style="display: block; margin-bottom: 0.5rem; color: #1b5e20; font-weight: 600;">Password:</label>
+                <input type="password" id="specific-password" placeholder="Enter password" 
+                       style="padding: 8px; border: 2px solid #4caf50; border-radius: 5px; width: 150px;">
+            </div>
+            <div style="margin-top: 1.5rem;">
+                <button type="button" class="btn btn-primary" onclick="importSpecific()">Import This Draw</button>
+            </div>
+        </div>
+        
+        <div id="specific-status" style="margin-top: 1rem;"></div>
     </div>
 
     <form method="POST" class="add-result-form" id="addResultForm">
@@ -154,6 +177,62 @@
             .catch(error => {
                 console.error('Error:', error);
                 statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Error checking missing draws.</p>';
+            });
+    }
+    
+    // Import a specific draw
+    function importSpecific() {
+        const drawNumber = document.getElementById('specific-draw').value;
+        const password = document.getElementById('specific-password').value;
+        const statusDiv = document.getElementById('specific-status');
+        
+        if (!drawNumber) {
+            statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Please enter a draw number.</p>';
+            return;
+        }
+        
+        if (!password) {
+            statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Please enter password.</p>';
+            return;
+        }
+        
+        statusDiv.innerHTML = `<p style="color: #667eea;">⏳ Fetching and importing draw #${drawNumber}...</p>`;
+        
+        const formData = new FormData();
+        formData.append('draw_number', drawNumber);
+        formData.append('password', password);
+        
+        fetch('/import_specific', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                        <div style="background: #d4edda; padding: 1rem; border-radius: 8px; border: 2px solid #28a745;">
+                            <p style="color: #155724; margin: 0;"><strong>✓ ${data.message}</strong></p>
+                            <p style="color: #155724; margin: 0.5rem 0 0 0;">
+                                Date: ${data.date} | Numbers: ${data.numbers.join(', ')} | Strong: ${data.strong_number}
+                            </p>
+                        </div>
+                    `;
+                    
+                    // Clear inputs
+                    document.getElementById('specific-draw').value = '';
+                    document.getElementById('specific-password').value = '';
+                    
+                    // Refresh the page stats after 1 second
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    statusDiv.innerHTML = `<p style="color: #dc3545;">✗ ${data.error}</p>`;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<p style="color: #dc3545;">✗ Error importing draw.</p>';
             });
     }
     

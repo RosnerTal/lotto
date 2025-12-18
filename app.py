@@ -254,6 +254,77 @@ def api_check_missing():
     })
 
 
+@app.route('/import_specific', methods=['POST'])
+def import_specific():
+    """Import a specific draw number (password protected)"""
+    ADD_RESULT_PASSWORD = "Xhknrhkhui"
+    
+    password = request.form.get('password', '')
+    if password != ADD_RESULT_PASSWORD:
+        return jsonify({"success": False, "error": "Incorrect password"}), 403
+    
+    try:
+        draw_number = int(request.form.get('draw_number', 0))
+        if draw_number <= 0:
+            return jsonify({"success": False, "error": "Invalid draw number"}), 400
+    except ValueError:
+        return jsonify({"success": False, "error": "Invalid draw number"}), 400
+    
+    from lotto_scraper import fetch_draw_result
+    
+    # Check if draw already exists
+    db = LotteryDatabase()
+    db.connect()
+    
+    # Try to fetch it
+    result = fetch_draw_result(draw_number)
+    
+    if not result:
+        db.close()
+        return jsonify({
+            "success": False, 
+            "error": f"Failed to fetch draw #{draw_number} from website. It may not exist or the website structure changed."
+        }), 500
+    
+    # Check if already in database
+    existing = db.get_latest_results(limit=1000)  # Get a large set to search
+    existing_numbers = [r[0] for r in existing]
+    
+    if draw_number in existing_numbers:
+        db.close()
+        return jsonify({
+            "success": False,
+            "error": f"Draw #{draw_number} already exists in database!"
+        }), 400
+    
+    # Import the draw
+    try:
+        success = db.add_result(
+            result['draw_number'],
+            result['date'],
+            result['numbers'],
+            result['strong_number']
+        )
+        
+        db.close()
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "imported": draw_number,
+                "date": result['date'],
+                "numbers": result['numbers'],
+                "strong_number": result['strong_number'],
+                "message": f"Successfully imported draw #{draw_number}"
+            })
+        else:
+            return jsonify({"success": False, "error": "Failed to save to database"}), 500
+            
+    except Exception as e:
+        db.close()
+        return jsonify({"success": False, "error": f"Error: {str(e)}"}), 500
+
+
 @app.route('/import_missing', methods=['POST'])
 def import_missing():
     """Import all missing draws (password protected)"""

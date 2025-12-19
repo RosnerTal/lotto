@@ -13,10 +13,11 @@ else:
     from database import LotteryDatabase
 
 from lotto_scraper import fetch_latest_result
+from lotto_excel_scraper import fetch_missing_draws_excel
 
 
-def check_and_import_latest():
-    """Check for new lottery results and import if available"""
+def check_and_import_all_missing():
+    """Check for new lottery results and import ALL missing draws"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"\n[{timestamp}] Checking for new lottery results...")
     
@@ -31,7 +32,7 @@ def check_and_import_latest():
         
         print(f"  Latest in database: Draw #{latest_in_db}")
         
-        # Fetch latest from website
+        # Fetch latest from website to know the range
         latest_result = fetch_latest_result()
         
         if not latest_result:
@@ -44,33 +45,52 @@ def check_and_import_latest():
         
         # Check if we need to import
         if latest_online > latest_in_db:
-            print(f"  → New draw found! Importing #{latest_online}...")
+            missing_count = latest_online - latest_in_db
+            print(f"  → Found {missing_count} missing draw(s)")
             
-            success = db.add_result(
-                latest_result['draw_number'],
-                latest_result['date'],
-                latest_result['numbers'],
-                latest_result['strong_number']
-            )
+            # Fetch ALL missing draws using Excel API
+            print(f"  → Fetching draws {latest_in_db + 1} to {latest_online} using Excel API...")
+            missing_draws = fetch_missing_draws_excel(latest_in_db + 1, latest_online)
             
-            if success:
-                print(f"  ✓ Successfully imported Draw #{latest_online}")
-                print(f"     Date: {latest_result['date']}")
-                print(f"     Numbers: {latest_result['numbers']}")
-                print(f"     Strong: {latest_result['strong_number']}")
-                
-                # Check if there are still missing draws
-                if latest_online - latest_in_db > 1:
-                    missing = list(range(latest_in_db + 1, latest_online))
-                    print(f"  ⚠ Warning: Still missing {len(missing)} draw(s): {missing}")
-                    print(f"     These need to be added manually via the web interface")
-                
-                db.close()
-                return True
-            else:
-                print(f"  ✗ Failed to save to database")
+            if not missing_draws:
+                print("  ✗ Failed to fetch draws from Excel API")
                 db.close()
                 return False
+            
+            print(f"  ✓ Fetched {len(missing_draws)} draw(s)")
+            
+            # Import each draw
+            imported = []
+            failed = []
+            
+            for draw in sorted(missing_draws, key=lambda x: x['draw_number']):
+                try:
+                    success = db.add_result(
+                        draw['draw_number'],
+                        draw['date'],
+                        draw['numbers'],
+                        draw['strong_number']
+                    )
+                    
+                    if success:
+                        imported.append(draw['draw_number'])
+                        print(f"  ✓ Imported Draw #{draw['draw_number']}: {draw['numbers']} + {draw['strong_number']}")
+                    else:
+                        failed.append(draw['draw_number'])
+                        print(f"  ✗ Failed to save Draw #{draw['draw_number']}")
+                        
+                except Exception as e:
+                    failed.append(draw['draw_number'])
+                    print(f"  ✗ Error importing Draw #{draw['draw_number']}: {e}")
+            
+            db.close()
+            
+            print(f"\n  Summary:")
+            print(f"    Imported: {len(imported)} draw(s)")
+            if failed:
+                print(f"    Failed: {len(failed)} draw(s) - {failed}")
+            
+            return len(imported) > 0
         else:
             print("  ✓ Database is up to date")
             db.close()
@@ -87,7 +107,7 @@ def check_and_import_latest():
 
 def run_once():
     """Run the check once and exit"""
-    result = check_and_import_latest()
+    result = check_and_import_all_missing()
     sys.exit(0 if result else 1)
 
 
@@ -105,11 +125,11 @@ def run_scheduler():
     scheduler = BlockingScheduler()
     
     # Run immediately on start
-    check_and_import_latest()
+    check_and_import_all_missing()
     
     # Schedule to run every hour
     scheduler.add_job(
-        check_and_import_latest,
+        check_and_import_all_missing,
         'interval',
         hours=1,
         id='lottery_updater',

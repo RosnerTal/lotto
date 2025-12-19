@@ -5,7 +5,7 @@ An advanced lottery prediction application that analyzes historical Israeli Lott
 ## Features
 
 - 📊 **Data Analysis**: Analyzes 3+ years of historical lottery data
-- 🎯 **Multiple Prediction Strategies**: 5 different algorithms including:
+- 🎯 **Multiple Prediction Strategies**: 10 different algorithms including:
   - Frequency-based (Hot numbers)
   - Balanced approach (Hot & Cold numbers)
   - Overdue numbers

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Add Result - Israeli Lottery Predictor{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1>Add New Lottery Result</h1>
+    
+    {% if success %}
+    <div class="alert success">
+        ✓ {{ message }}
+    </div>
+    {% endif %}
+    
+    {% if error %}
+    <div class="alert error">
+        ✗ {{ message }}
+    </div>
+    {% endif %}
+
+    <div class="fetch-section" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%); border-color: #ffc107;">
+        <h3 style="color: #856404;">ℹ️ How to Add Results</h3>
+        <p style="color: #856404;">Visit <a href="https://lottosheli.co.il/results/lotto" target="_blank" style="color: #0066cc; font-weight: 600;">lottosheli.co.il</a> to get the latest lottery results, then fill in the form below.</p>
+        <p style="color: #856404; font-size: 0.9em;"><strong>Note:</strong> Auto-import is not available on the free hosting tier. Results must be added manually.</p>
+    </div>
+
+    <form method="POST" class="add-result-form" id="addResultForm">
+        <div class="form-group">
+            <label for="draw_number">Draw Number:</label>
+            <input type="number" id="draw_number" name="draw_number" 
+                   value="{{ next_draw }}" required min="1">
+        </div>
+
+        <div class="form-group">
+            <label for="draw_date">Draw Date:</label>
+            <input type="date" id="draw_date" name="draw_date" required>
+        </div>
+
+        <div class="form-section">
+            <h3>Main Numbers (1-37)</h3>
+            <div class="numbers-input-grid">
+                <div class="form-group">
+                    <label for="number1">Number 1:</label>
+                    <input type="number" id="number1" name="number1" 
+                           required min="1" max="37">
+                </div>
+                <div class="form-group">
+                    <label for="number2">Number 2:</label>
+                    <input type="number" id="number2" name="number2" 
+                           required min="1" max="37">
+                </div>
+                <div class="form-group">
+                    <label for="number3">Number 3:</label>
+                    <input type="number" id="number3" name="number3" 
+                           required min="1" max="37">
+                </div>
+                <div class="form-group">
+                    <label for="number4">Number 4:</label>
+                    <input type="number" id="number4" name="number4" 
+                           required min="1" max="37">
+                </div>
+                <div class="form-group">
+                    <label for="number5">Number 5:</label>
+                    <input type="number" id="number5" name="number5" 
+                           required min="1" max="37">
+                </div>
+                <div class="form-group">
+                    <label for="number6">Number 6:</label>
+                    <input type="number" id="number6" name="number6" 
+                           required min="1" max="37">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="strong_number">Strong Number (1-7):</label>
+            <input type="number" id="strong_number" name="strong_number" 
+                   required min="1" max="7">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" 
+                   placeholder="Enter password to add result" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Add Result</button>
+    </form>
+</div>
+
+<script>
+// Set today's date by default
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('draw_date').value = today;
+});
+</script>
+{% endblock %}
+

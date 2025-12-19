@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}How It Works - Israeli Lottery Predictor{% endblock %}
+
+{% block content %}
+<div class="section">
+    <h1>🎯 How the Prediction System Works</h1>
+    
+    <div class="info-box" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); margin-bottom: 2rem;">
+        <h3 style="color: #1565c0; margin-top: 0;">📊 Data Analysis</h3>
+        <p>Our predictor analyzes <strong>{{ total_draws }} lottery draws</strong> from the <strong>last 4 years</strong> (since the current Israeli lottery system began).</p>
+        <p>All predictions are based on:</p>
+        <ul style="margin-left: 1.5rem;">
+            <li><strong>6 main numbers</strong> from 1 to 37</li>
+            <li><strong>1 strong number</strong> from 1 to 7</li>
+        </ul>
+    </div>
+
+    <h2>🎲 10 Prediction Methods</h2>
+    <p>Each method uses a different statistical approach to select numbers. When you request multiple predictions, each uses a different method:</p>
+
+    <div class="method-grid">
+        <!-- Method 1 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);">
+                <span class="method-number">1</span>
+                <h3>Frequency Based<br/>(Hot Numbers)</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Selects the most frequently drawn numbers from recent draws (last 100 draws).</p>
+                <p><strong>Theory:</strong> "Hot" numbers that appear often are more likely to appear again.</p>
+                <p><strong>Best for:</strong> Players who believe in trending numbers.</p>
+            </div>
+        </div>
+
+        <!-- Method 2 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);">
+                <span class="method-number">2</span>
+                <h3>Balanced<br/>(Hot & Cold)</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Mixes 3 frequently drawn numbers (hot) with 3 rarely drawn numbers (cold).</p>
+                <p><strong>Theory:</strong> Balance between popular and overdue numbers.</p>
+                <p><strong>Best for:</strong> Risk-balanced strategies.</p>
+            </div>
+        </div>
+
+        <!-- Method 3 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <span class="method-number">3</span>
+                <h3>Overdue Numbers</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Selects numbers that haven't appeared in the longest time.</p>
+                <p><strong>Theory:</strong> Numbers "due" for a comeback based on probability.</p>
+                <p><strong>Best for:</strong> Contrarian players.</p>
+            </div>
+        </div>
+
+        <!-- Method 4 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%);">
+                <span class="method-number">4</span>
+                <h3>Pattern Based</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Analyzes patterns like odd/even and high/low number distribution.</p>
+                <p><strong>Theory:</strong> Lottery draws tend to have balanced distributions.</p>
+                <p><strong>Best for:</strong> Pattern recognition enthusiasts.</p>
+            </div>
+        </div>
+
+        <!-- Method 5 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);">
+                <span class="method-number">5</span>
+                <h3>Statistical Average</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Selects numbers with frequency close to the statistical average.</p>
+                <p><strong>Theory:</strong> Numbers near the mean are most "normal" and likely.</p>
+                <p><strong>Best for:</strong> Data-driven players.</p>
+            </div>
+        </div>
+
+        <!-- Method 6 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #fda085 0%, #f6d365 100%);">
+                <span class="method-number">6</span>
+                <h3>Recent Trends</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Focuses only on the last 10 draws to find immediate trends.</p>
+                <p><strong>Theory:</strong> Short-term patterns can indicate current lottery behavior.</p>
+                <p><strong>Best for:</strong> Momentum-based strategies.</p>
+            </div>
+        </div>
+
+        <!-- Method 7 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                <span class="method-number">7</span>
+                <h3>Number Pairs Analysis</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Identifies numbers that frequently appear together in the same draw.</p>
+                <p><strong>Theory:</strong> Certain number combinations have stronger correlation.</p>
+                <p><strong>Best for:</strong> Combination-focused players.</p>
+            </div>
+        </div>
+
+        <!-- Method 8 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%); color: white;">
+                <span class="method-number">8</span>
+                <h3>Sum-Based Targeting</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Generates numbers whose sum matches the historical average (±10%).</p>
+                <p><strong>Theory:</strong> Winning combinations tend to have sums near the average.</p>
+                <p><strong>Best for:</strong> Mathematical approach enthusiasts.</p>
+            </div>
+        </div>
+
+        <!-- Method 9 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);">
+                <span class="method-number">9</span>
+                <h3>Odd/Even Balanced</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Ensures exactly 3 odd and 3 even numbers.</p>
+                <p><strong>Theory:</strong> Most lottery draws have balanced odd/even distribution.</p>
+                <p><strong>Best for:</strong> Balance-focused strategies.</p>
+            </div>
+        </div>
+
+        <!-- Method 10 -->
+        <div class="method-card">
+            <div class="method-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <span class="method-number">10</span>
+                <h3>Spread Distribution</h3>
+            </div>
+            <div class="method-body">
+                <p><strong>How it works:</strong> Selects numbers evenly spread across the entire 1-37 range.</p>
+                <p><strong>Theory:</strong> Avoids number clustering for wider coverage.</p>
+                <p><strong>Best for:</strong> Diversification strategies.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="info-box" style="background: linear-gradient(135deg, #fff9c4 0%, #ffecb3 100%); margin-top: 2rem;">
+        <h3 style="color: #f57c00; margin-top: 0;">🎚️ Variety Control</h3>
+        <p>The <strong>Variety Level</strong> slider (0%-100%) controls prediction randomness:</p>
+        <ul style="margin-left: 1.5rem;">
+            <li><strong>0%:</strong> Fully deterministic - same predictions every time (based on current data)</li>
+            <li><strong>50%:</strong> Moderate variety - some randomness mixed with patterns</li>
+            <li><strong>100%:</strong> Full randomness - completely different predictions each time</li>
+        </ul>
+        <p style="margin-top: 1rem;"><em>Lower variety is useful for comparing strategies, higher variety for generating many unique combinations.</em></p>
+    </div>
+
+    <div class="info-box" style="background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%); margin-top: 2rem;">
+        <h3 style="color: #c62828; margin-top: 0;">⚠️ Important Disclaimer</h3>
+        <p><strong>This is for entertainment purposes only.</strong> Lottery outcomes are completely random and unpredictable. No statistical method can guarantee winning numbers.</p>
+        <p>Past performance does not indicate future results. Play responsibly!</p>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="{{ url_for('predict') }}" class="btn btn-primary" style="font-size: 1.1rem; padding: 12px 30px;">
+            🎲 Try the Predictor
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary" style="font-size: 1.1rem; padding: 12px 30px; margin-left: 10px;">
+            🏠 Back to Home
+        </a>
+    </div>
+</div>
+
+<style>
+.method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.method-card {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.method-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.method-header {
+    padding: 1.5rem;
+    color: white;
+    text-align: center;
+    position: relative;
+}
+
+.method-number {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.3);
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.method-header h3 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.method-body {
+    padding: 1.5rem;
+    line-height: 1.6;
+}
+
+.method-body p {
+    margin: 0.75rem 0;
+}
+
+.method-body strong {
+    color: #333;
+}
+
+.info-box {
+    padding: 1.5rem;
+    border-radius: 10px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.info-box h3 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+}
+
+.info-box ul {
+    line-height: 1.8;
+}
+</style>
+{% endblock %}
+

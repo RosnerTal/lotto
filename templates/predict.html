@@ -5,17 +5,23 @@
 {% block content %}
 <div class="section">
     <h1>Lottery Predictions</h1>
-    <p>Based on analysis of {{ statistics.total_draws }} historical draws</p>
+    <p>Based on analysis of {{ statistics.total_draws }} historical draws from the last 4 years</p>
+    <p style="margin-top: 0.5rem;">
+        <a href="{{ url_for('how_it_works') }}" class="info-link" style="color: #007bff; text-decoration: none; font-weight: 500;">
+            ℹ️ How do these predictions work? Click here to learn about our 10 different methods
+        </a>
+    </p>
 
     <form method="POST" class="prediction-form">
         <div class="form-row">
             <div class="form-group-inline">
                 <label for="num_predictions">Number of predictions:</label>
                 <select name="num_predictions" id="num_predictions">
-                    <option value="1" {% if current_num == 1 %}selected{% endif %}>1</option>
-                    <option value="3" {% if current_num == 3 %}selected{% endif %}>3</option>
-                    <option value="5" {% if current_num == 5 or not current_num %}selected{% endif %}>5</option>
-                    <option value="10" {% if current_num == 10 %}selected{% endif %}>10</option>
+                    {% for i in range(1, 11) %}
+                    <option value="{{ i }}" {% if current_num == i or (not current_num and i == 5) %}selected{% endif %}>
+                        {{ i }} {% if i == 1 %}prediction{% else %}predictions{% endif %}
+                    </option>
+                    {% endfor %}
                 </select>
             </div>
             

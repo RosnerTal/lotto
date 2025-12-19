@@ -83,6 +83,20 @@ def statistics():
     return render_template('statistics.html', statistics=stats)
 
 
+@app.route('/how-it-works')
+def how_it_works():
+    """Show explanation of prediction methods."""
+    predictor = LotteryPredictor()
+    predictor.connect()
+    
+    stats = predictor.get_statistics()
+    total_draws = stats['total_draws']
+    
+    predictor.close()
+    
+    return render_template('how_it_works.html', total_draws=total_draws)
+
+
 @app.route('/add_result', methods=['GET', 'POST'])
 def add_result():
     """Add a new lottery result (password protected)."""

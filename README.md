@@ -146,9 +146,59 @@ CREATE TABLE lottery_results (
 )
 ```
 
-## Adding New Results
+## Automatic Updates (Recommended)
 
-After each lottery draw, you can add the results in three ways:
+The app can automatically check for new lottery results every hour:
+
+### Option 1: Run Standalone Auto-Updater
+
+**Windows:**
+```bash
+python auto_updater.py
+```
+Or double-click `run_updater.bat`
+
+**Linux/Mac:**
+```bash
+python3 auto_updater.py
+```
+Or: `chmod +x run_updater.sh && ./run_updater.sh`
+
+This will:
+- Check for new draws every hour
+- Automatically import the latest draw
+- Log all activity to console
+- Keep running in the background
+
+### Option 2: Run Once (Manual Check)
+
+```bash
+python auto_updater.py --once
+```
+
+This checks once and exits - useful for cron jobs or Task Scheduler.
+
+### Option 3: Windows Task Scheduler
+
+1. Open Task Scheduler
+2. Create Basic Task
+3. Trigger: Daily
+4. Action: Start a program
+5. Program: `python.exe`
+6. Arguments: `C:\git\Lotto\auto_updater.py --once`
+7. Start in: `C:\git\Lotto`
+
+### Option 4: Linux Cron
+
+```bash
+crontab -e
+# Add this line (checks every hour):
+0 * * * * cd /path/to/lotto && python3 auto_updater.py --once
+```
+
+## Adding New Results Manually
+
+If you prefer manual control, you can add results in three ways:
 
 ### Method 1: Web Interface
 1. Navigate to "Add Result" in the web interface

@@ -24,6 +24,10 @@
             <p>Strong Numbers (1-7)</p>
         </div>
     </div>
+    
+    <div class="auto-updater-status" id="updater-status">
+        <p>🤖 Auto-Updater: <span id="updater-state">Checking...</span></p>
+    </div>
     <div class="cta-buttons">
         <a href="{{ url_for('predict') }}" class="btn btn-primary">Get Predictions</a>
         <a href="{{ url_for('statistics') }}" class="btn btn-secondary">View Statistics</a>
@@ -89,6 +93,25 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Check auto-updater status
+    fetch('/api/auto_updater/status')
+        .then(r => r.json())
+        .then(data => {
+            const stateEl = document.getElementById('updater-state');
+            if (data.enabled && data.running) {
+                stateEl.textContent = 'Active (checks every hour)';
+                stateEl.style.color = '#28a745';
+            } else {
+                stateEl.textContent = 'Not running';
+                stateEl.style.color = '#dc3545';
+            }
+        })
+        .catch(() => {
+            document.getElementById('updater-state').textContent = 'Unknown';
+        });
+</script>
 {% endblock %}
 
 

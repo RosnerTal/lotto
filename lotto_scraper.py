@@ -1,5 +1,6 @@
 """
-Scraper to fetch latest lottery results from lottosheli.co.il
+Scraper to fetch the latest lottery result from lottosheli.co.il
+Note: Can only fetch the currently displayed draw due to JavaScript limitations
 """
 import requests
 from bs4 import BeautifulSoup
@@ -176,33 +177,7 @@ def fetch_draw_from_page(draw_number: int) -> Optional[Dict]:
         return None
 
 
-def fetch_missing_draws(missing_draw_numbers: list) -> list:
-    """
-    Fetch multiple specific draw numbers
-    
-    Args:
-        missing_draw_numbers: List of draw numbers to fetch
-    
-    Returns:
-        List of successfully fetched draw dictionaries
-    """
-    results = []
-    
-    for draw_num in missing_draw_numbers:
-        print(f"Fetching draw #{draw_num}...")
-        result = fetch_draw_result(draw_num)
-        
-        if result:
-            results.append(result)
-            print(f"  ✓ Successfully fetched draw #{draw_num}")
-        else:
-            print(f"  ✗ Failed to fetch draw #{draw_num}")
-        
-        # Small delay to be polite to the server
-        import time
-        time.sleep(0.5)
-    
-    return results
+# Removed fetch_missing_draws - not feasible due to JavaScript limitations
 
 
 def fetch_multiple_draws(start_draw: int, end_draw: int) -> list:

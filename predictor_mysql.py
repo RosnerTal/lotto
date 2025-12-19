@@ -264,6 +264,154 @@ class LotteryPredictorMySQL:
         
         return numbers, strong_number
     
+    def predict_recent_trends(self) -> Tuple[List[int], int]:
+        """Predict based on very recent draws (last 5-10 draws only)."""
+        recent_draws = self.get_all_numbers(limit=10)
+        flat_numbers = [num for draw in recent_draws for num in draw]
+        recent_freq = Counter(flat_numbers)
+        
+        top_recent = sorted(recent_freq.items(), key=lambda x: x[1], reverse=True)[:12]
+        trending = [num for num, _ in top_recent]
+        
+        if len(trending) >= 6:
+            numbers = sorted(random.sample(trending, 6))
+        else:
+            numbers = trending + random.sample(
+                [i for i in range(1, 38) if i not in trending],
+                6 - len(trending)
+            )
+            numbers = sorted(numbers[:6])
+        
+        recent_strong = self.get_all_strong_numbers(limit=10)
+        strong_freq = Counter(recent_strong)
+        strong_number = strong_freq.most_common(1)[0][0] if strong_freq else random.randint(1, 7)
+        
+        return numbers, strong_number
+    
+    def predict_number_pairs(self) -> Tuple[List[int], int]:
+        """Predict using common number pair analysis."""
+        recent_draws = self.get_all_numbers(limit=100)
+        
+        pairs = []
+        for draw in recent_draws:
+            for i in range(len(draw)):
+                for j in range(i + 1, len(draw)):
+                    pairs.append(tuple(sorted([draw[i], draw[j]])))
+        
+        pair_freq = Counter(pairs)
+        top_pairs = pair_freq.most_common(10)
+        
+        numbers = []
+        for pair, _ in top_pairs:
+            for num in pair:
+                if num not in numbers:
+                    numbers.append(num)
+                if len(numbers) >= 6:
+                    break
+            if len(numbers) >= 6:
+                break
+        
+        while len(numbers) < 6:
+            num = random.randint(1, 37)
+            if num not in numbers:
+                numbers.append(num)
+        
+        numbers = sorted(numbers[:6])
+        
+        strong_freq = self.strong_number_frequency(limit=100)
+        strong_number = max(strong_freq.items(), key=lambda x: x[1])[0]
+        
+        return numbers, strong_number
+    
+    def predict_sum_based(self) -> Tuple[List[int], int]:
+        """Predict targeting the average sum of winning numbers."""
+        recent_draws = self.get_all_numbers(limit=100)
+        
+        sums = [sum(draw) for draw in recent_draws]
+        avg_sum = sum(sums) / len(sums)
+        target_sum = int(avg_sum)
+        
+        min_sum = target_sum - int(target_sum * 0.1)
+        max_sum = target_sum + int(target_sum * 0.1)
+        
+        attempts = 0
+        while attempts < 100:
+            numbers = sorted(random.sample(range(1, 38), 6))
+            current_sum = sum(numbers)
+            if min_sum <= current_sum <= max_sum:
+                break
+            attempts += 1
+        
+        strong_freq = self.strong_number_frequency(limit=100)
+        strong_number = max(strong_freq.items(), key=lambda x: x[1])[0]
+        
+        return numbers, strong_number
+    
+    def predict_odd_even_balanced(self) -> Tuple[List[int], int]:
+        """Predict with balanced odd/even distribution (3-3 split)."""
+        recent_draws = self.get_all_numbers(limit=50)
+        odd_freq = Counter()
+        even_freq = Counter()
+        
+        for draw in recent_draws:
+            for num in draw:
+                if num % 2 == 0:
+                    even_freq[num] += 1
+                else:
+                    odd_freq[num] += 1
+        
+        top_odds = [num for num, _ in odd_freq.most_common(10)]
+        top_evens = [num for num, _ in even_freq.most_common(10)]
+        
+        numbers = []
+        if len(top_odds) >= 3:
+            numbers.extend(random.sample(top_odds, 3))
+        else:
+            numbers.extend(top_odds)
+            odds = [i for i in range(1, 38, 2) if i not in numbers]
+            numbers.extend(random.sample(odds, 3 - len(top_odds)))
+        
+        if len(top_evens) >= 3:
+            numbers.extend(random.sample(top_evens, 3))
+        else:
+            numbers.extend(top_evens)
+            evens = [i for i in range(2, 38, 2) if i not in numbers]
+            numbers.extend(random.sample(evens, 3 - len(top_evens)))
+        
+        numbers = sorted(numbers[:6])
+        
+        strong_freq = self.strong_number_frequency(limit=50)
+        strong_number = random.choice(list(strong_freq.keys())) if strong_freq else random.randint(1, 7)
+        
+        return numbers, strong_number
+    
+    def predict_spread_distribution(self) -> Tuple[List[int], int]:
+        """Predict with even spread across number range (no clustering)."""
+        segment_size = 37 / 6
+        numbers = []
+        
+        for i in range(6):
+            start = int(i * segment_size) + 1
+            end = int((i + 1) * segment_size)
+            
+            freq = self.frequency_analysis(limit=100)
+            segment_nums = {k: v for k, v in freq.items() if start <= k <= end}
+            
+            if segment_nums:
+                num = max(segment_nums.items(), key=lambda x: x[1])[0]
+            else:
+                num = random.randint(start, min(end, 37))
+            
+            numbers.append(num)
+        
+        numbers = sorted(numbers)
+        
+        strong_freq = self.strong_number_frequency(limit=100)
+        mid_strong = sorted(strong_freq.items(), key=lambda x: x[1])[len(strong_freq)//2] if strong_freq else (4, 0)
+        strong_number = mid_strong[0]
+        
+        return numbers, strong_number
+    
     def _set_variety_seed(self, variety: int, strategy_name: str):
         """Set random seed based on variety level."""
         if variety >= 100:
@@ -286,14 +434,22 @@ class LotteryPredictorMySQL:
             random.seed(mixed_seed)
     
     def generate_predictions(self, num_predictions: int = 5, variety: int = 100) -> List[Dict]:
-        """Generate multiple predictions."""
+        """Generate multiple predictions (1-10)."""
         strategies = [
             ("Frequency Based (Hot Numbers)", self.predict_frequency_based),
             ("Balanced (Hot & Cold)", self.predict_balanced),
             ("Overdue Numbers", self.predict_overdue),
             ("Pattern Based", self.predict_pattern_based),
             ("Statistical Average", self.predict_statistical_average),
+            ("Recent Trends", self.predict_recent_trends),
+            ("Number Pairs Analysis", self.predict_number_pairs),
+            ("Sum-Based Targeting", self.predict_sum_based),
+            ("Odd/Even Balanced", self.predict_odd_even_balanced),
+            ("Spread Distribution", self.predict_spread_distribution),
         ]
+        
+        # Limit to 10 predictions max
+        num_predictions = min(num_predictions, 10)
         
         predictions = []
         for i in range(num_predictions):

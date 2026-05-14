@@ -13,12 +13,16 @@ try:
     from lotto_scraper import fetch_latest_result
     DATABASE_READY = True
 except Exception as e:
-    print(f"CRITICAL IMPORT ERROR: {traceback.format_exc()}")
     DATABASE_READY = False
+    os.environ['IMPORT_ERROR'] = f"{str(e)}\n{traceback.format_exc()}"
+
 
 @app.route('/health')
 def health():
-    return f"LottoFire Status: {'DATABASE_READY' if DATABASE_READY else 'DATABASE_ERROR'}", 200
+    if not DATABASE_READY:
+        return f"DATABASE_ERROR: {os.environ.get('IMPORT_ERROR', 'Unknown Error')}", 200
+    return "LottoFire Status: DATABASE_READY", 200
+
 
 @app.route('/')
 def index():

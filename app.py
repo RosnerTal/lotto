@@ -4,14 +4,10 @@ import os
 import threading
 
 # Auto-detect environment and use appropriate database
-if 'PYTHONANYWHERE_DOMAIN' in os.environ:
-    # Running on PythonAnywhere - use MySQL
-    from database_mysql import LotteryDatabaseMySQL as LotteryDatabase
-    from predictor_mysql import LotteryPredictorMySQL as LotteryPredictor
-else:
-    # Running locally - use SQLite
-    from database import LotteryDatabase
-    from predictor import LotteryPredictor
+# Use Firestore for both local and cloud environments
+from database import LotteryDatabase
+from predictor import LotteryPredictor
+
 
 from lotto_scraper import fetch_latest_result
 

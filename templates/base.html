@@ -3,35 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Israeli Lottery Predictor{% endblock %}</title>
+    <title>{% block title %}🎱 LottoFire | Israeli Lottery Insights{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/512/3135/3135706.png" type="image/x-icon">
 </head>
-<body>
+<body dir="rtl">
     <nav class="navbar">
         <div class="container">
-            <h1 class="logo">🎱 Israeli Lottery Predictor</h1>
+            <a href="{{ url_for('index') }}" class="logo">🎱 LottoFire</a>
             <ul class="nav-links">
                 <li><a href="{{ url_for('index') }}">Home</a></li>
                 <li><a href="{{ url_for('predict') }}">Predictions</a></li>
-                <li><a href="{{ url_for('how_it_works') }}">How It Works</a></li>
+                <li><a href="{{ url_for('how_it_works') }}">Analysis</a></li>
                 <li><a href="{{ url_for('statistics') }}">Statistics</a></li>
                 <li><a href="{{ url_for('history') }}">History</a></li>
-                <li><a href="{{ url_for('add_result') }}">Add Result</a></li>
             </ul>
+            <div class="nav-actions">
+                <a href="{{ url_for('add_result') }}" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.8rem;">Admin</a>
+            </div>
         </div>
     </nav>
 
-    <div class="container">
+    <main class="container">
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 Israeli Lottery Predictor | Data-driven lottery predictions</p>
-            <p><small>Disclaimer: Predictions are based on historical data analysis. Lottery results are random and cannot be guaranteed.</small></p>
-        </div>
+    <footer class="container">
+        <p>&copy; 2025 LottoFire AI | Advanced Lottery Intelligence</p>
+        <p class="disclaimer">Data-driven insights for entertainment purposes only. Please gamble responsibly. 18+</p>
     </footer>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyAQcOZAr38xpfY79FRbmfqesRrSM8XcjqI",
+        authDomain: "lotto-bc9e0.firebaseapp.com",
+        projectId: "lotto-bc9e0",
+        storageBucket: "lotto-bc9e0.firebasestorage.app",
+        messagingSenderId: "150187011222",
+        appId: "1:150187011222:web:aff4fc8a9f8095182726b7",
+        measurementId: "G-JPF0D4WW7K"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      
+      console.log("Firebase initialized successfully");
+    </script>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>
-
-

@@ -7,10 +7,9 @@ import sys
 from datetime import datetime
 
 # Auto-detect environment and use appropriate database
-if 'PYTHONANYWHERE_DOMAIN' in os.environ:
-    from database_mysql import LotteryDatabaseMySQL as LotteryDatabase
-else:
-    from database import LotteryDatabase
+# Use Firestore database
+from database import LotteryDatabase
+
 
 from lotto_scraper import fetch_latest_result
 from lotto_excel_scraper import fetch_missing_draws_excel

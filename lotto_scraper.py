@@ -55,19 +55,42 @@ def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
         date_str = draw_match.group(2)  # DD.MM.YYYY
         date_formatted = date_str.replace('.', '/')
         
-        # Find the lottery balls
+        # Find the lottery balls (look for elements with ball classes)
         numbers = []
         strong_number = None
         
-        number_elements = soup.find_all(string=re.compile(r'^\d+$'))
-        for elem in number_elements:
-            num_text = elem.strip()
-            if num_text.isdigit():
-                num = int(num_text)
-                if 1 <= num <= 37 and len(numbers) < 6:
-                    numbers.append(num)
-                elif 1 <= num <= 7 and len(numbers) == 6 and strong_number is None:
+        # Try to find balls by their common class names or containers
+        # In the new layout, balls are often in divs or spans with specific classes
+        ball_containers = soup.find_all(['div', 'span'], class_=re.compile(r'ball|result|number', re.I))
+        
+        if not ball_containers:
+            # Fallback: look for all circles/balls
+            ball_containers = soup.select('.lotto-ball, .strong-ball, .ball')
+
+        for container in ball_containers:
+            val = container.text.strip()
+            if val.isdigit():
+                num = int(val)
+                if 'strong' in str(container.get('class', [])).lower():
                     strong_number = num
+                elif 1 <= num <= 37 and len(numbers) < 6:
+                    numbers.append(num)
+
+        # Final Fallback: use the regex but be more specific
+        if len(numbers) < 6 or strong_number is None:
+            all_digits = soup.find_all(string=re.compile(r'^\d{1,2}$'))
+            # Filter to unique digits that look like lottery results
+            potential_nums = []
+            for d in all_digits:
+                n = int(d.strip())
+                if 1 <= n <= 37:
+                    potential_nums.append(n)
+            
+            # Usually the last 7 digits on the results page are the numbers (6+1)
+            if len(potential_nums) >= 7:
+                # Assuming the last 7 are the results
+                numbers = potential_nums[-7:-1]
+                strong_number = potential_nums[-1]
         
         if len(numbers) != 6 or strong_number is None:
             return None
@@ -75,7 +98,7 @@ def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
         return {
             'draw_number': found_draw_number,
             'date': date_formatted,
-            'numbers': numbers,
+            'numbers': sorted(numbers),
             'strong_number': strong_number
         }
     

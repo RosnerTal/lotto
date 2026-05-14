@@ -50,15 +50,23 @@ def check_and_import_all_missing():
             
             print(f"  → Found missing draws. Fetching up to {missing_count} latest draws (from #{start_draw} to #{latest_online})")
             
-            # Fetch missing draws using Excel API
-            print(f"  → Fetching draws using Excel API...")
-            missing_draws = fetch_missing_draws_excel(start_draw, latest_online)
-
+            # Lightweight fetch: Get each missing draw one by one
+            from lotto_scraper import fetch_draw_result
+            import time
+            
+            missing_draws = []
+            for d_num in range(start_draw, latest_online + 1):
+                print(f"  → Fetching Draw #{d_num}...")
+                res = fetch_draw_result(d_num)
+                if res:
+                    missing_draws.append(res)
+                    time.sleep(0.5) # Avoid hammering the server
             
             if not missing_draws:
-                print("  ✗ Failed to fetch draws from Excel API")
+                print("  ✗ Failed to fetch any missing draws")
                 db.close()
                 return False
+
             
             print(f"  ✓ Fetched {len(missing_draws)} draw(s)")
             

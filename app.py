@@ -3,14 +3,9 @@ from datetime import datetime
 import os
 import threading
 
-# Auto-detect environment and use appropriate database
-
-
 # Use Firestore for both local and cloud environments
 from database import LotteryDatabase
 from predictor import LotteryPredictor
-
-
 from lotto_scraper import fetch_latest_result
 
 app = Flask(__name__)
@@ -20,51 +15,41 @@ def health_check():
     """Simple diagnostic endpoint"""
     return "LottoFire Server is ALIVE!", 200
 
-
 # Auto-updater status
 auto_updater_enabled = False
 auto_updater_thread = None
-
 
 @app.route('/')
 def index():
     """Main page showing predictions and recent results."""
     db = LotteryDatabase()
     db.connect()
-    
-    # Get latest results for display
     latest_results = db.get_latest_results(limit=10)
-    
     db.close()
     
-    # Get the actual count of draws used for predictions (last 4 years)
     predictor = LotteryPredictor()
     predictor.connect()
     stats = predictor.get_statistics()
-    total_results = stats['total_draws']  # This is the filtered count
+    total_results = stats['total_draws']
     predictor.close()
     
     return render_template('index.html', 
                          total_results=total_results,
                          latest_results=latest_results)
 
-
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
     """Generate predictions."""
     num_predictions = 5
-    variety = 0  # Default to deterministic
-    
+    variety = 0
     if request.method == 'POST':
         num_predictions = int(request.form.get('num_predictions', 5))
         variety = int(request.form.get('variety', 0))
     
     predictor = LotteryPredictor()
     predictor.connect()
-    
     predictions = predictor.generate_predictions(num_predictions, variety=variety)
     statistics = predictor.get_statistics()
-    
     predictor.close()
     
     return render_template('predict.html', 
@@ -73,41 +58,30 @@ def predict():
                          current_variety=variety,
                          current_num=num_predictions)
 
-
 @app.route('/statistics')
 def statistics():
     """Show detailed statistics."""
     predictor = LotteryPredictor()
     predictor.connect()
-    
     stats = predictor.get_statistics()
-    
     predictor.close()
-    
     return render_template('statistics.html', statistics=stats)
-
 
 @app.route('/how-it-works')
 def how_it_works():
     """Show explanation of prediction methods."""
     predictor = LotteryPredictor()
     predictor.connect()
-    
     stats = predictor.get_statistics()
     total_draws = stats['total_draws']
-    
     predictor.close()
-    
     return render_template('how_it_works.html', total_draws=total_draws)
-
 
 @app.route('/add_result', methods=['GET', 'POST'])
 def add_result():
     """Add a new lottery result (password protected)."""
     ADD_RESULT_PASSWORD = "Xhknrhkhui"
-    
     if request.method == 'POST':
-        # Check password first
         password = request.form.get('password', '')
         if password != ADD_RESULT_PASSWORD:
             db = LotteryDatabase()
@@ -115,285 +89,63 @@ def add_result():
             latest_draw = db.get_latest_draw_number()
             next_draw = (latest_draw + 1) if latest_draw else 1
             db.close()
-            return render_template('add_result.html', 
-                                 error=True, 
-                                 message="Incorrect password!",
-                                 next_draw=next_draw)
+            return render_template('add_result.html', error=True, message="Incorrect password!", next_draw=next_draw)
         
         try:
             draw_number = int(request.form['draw_number'])
             draw_date = request.form['draw_date']
-            
-            numbers = [
-                int(request.form['number1']),
-                int(request.form['number2']),
-                int(request.form['number3']),
-                int(request.form['number4']),
-                int(request.form['number5']),
-                int(request.form['number6'])
-            ]
-            
+            numbers = [int(request.form[f'number{i}']) for i in range(1, 7)]
             strong_number = int(request.form['strong_number'])
             
             db = LotteryDatabase()
             db.connect()
-            
             success = db.add_result(draw_number, draw_date, numbers, strong_number)
-            
             db.close()
             
             if success:
-                return render_template('add_result.html', 
-                                     success=True, 
-                                     message="Result added successfully!")
+                return render_template('add_result.html', success=True, message="Result added successfully!")
             else:
-                return render_template('add_result.html', 
-                                     error=True, 
-                                     message="Failed to add result. Please check your input.")
-        
+                return render_template('add_result.html', error=True, message="Failed to add result.")
         except Exception as e:
-            return render_template('add_result.html', 
-                                 error=True, 
-                                 message=f"Error: {str(e)}")
+            return render_template('add_result.html', error=True, message=f"Error: {str(e)}")
     
-    # GET request - get next draw number
     db = LotteryDatabase()
     db.connect()
     latest_draw = db.get_latest_draw_number()
     next_draw = (latest_draw + 1) if latest_draw else 1
     db.close()
-    
     return render_template('add_result.html', next_draw=next_draw)
-
 
 @app.route('/history')
 def history():
     """Show all lottery results."""
     page = request.args.get('page', 1, type=int)
     per_page = 50
-    
     db = LotteryDatabase()
     db.connect()
-    
     all_results = db.get_all_results()
     total_results = len(all_results)
-    
-    # Paginate
     start = (page - 1) * per_page
-    end = start + per_page
-    results = all_results[start:end]
-    
+    results = all_results[start : start + per_page]
     total_pages = (total_results + per_page - 1) // per_page
-    
     db.close()
-    
-    return render_template('history.html', 
-                         results=results,
-                         page=page,
-                         total_pages=total_pages,
-                         total_results=total_results)
-
-
-@app.route('/api/predict')
-def api_predict():
-    """API endpoint to get predictions."""
-    num_predictions = request.args.get('num', 5, type=int)
-    variety = request.args.get('variety', 0, type=int)
-    
-    predictor = LotteryPredictor()
-    predictor.connect()
-    
-    predictions = predictor.generate_predictions(num_predictions, variety=variety)
-    
-    predictor.close()
-    
-    return jsonify(predictions)
-
-
-@app.route('/api/statistics')
-def api_statistics():
-    """API endpoint to get statistics."""
-    predictor = LotteryPredictor()
-    predictor.connect()
-    
-    stats = predictor.get_statistics()
-    
-    # Convert to JSON-serializable format
-    stats_json = {
-        "total_draws": stats["total_draws"],
-        "hot_numbers": stats["hot_numbers"],
-        "cold_numbers": stats["cold_numbers"],
-        "overdue_numbers": stats["overdue_numbers"],
-        "most_common_number": list(stats["most_common_number"]),
-        "least_common_number": list(stats["least_common_number"]),
-        "most_common_strong": list(stats["most_common_strong"]),
-        "least_common_strong": list(stats["least_common_strong"]),
-    }
-    
-    predictor.close()
-    
-    return jsonify(stats_json)
-
-
-@app.route('/api/fetch_latest')
-def api_fetch_latest():
-    """API endpoint to fetch latest result from lottosheli.co.il"""
-    result = fetch_latest_result()
-    if result:
-        return jsonify({"success": True, "data": result})
-    else:
-        return jsonify({"success": False, "error": "Failed to fetch latest result"}), 500
-
-
-@app.route('/api/check_missing')
-def api_check_missing():
-    """Check for missing draws between last DB entry and latest online"""
-    db = LotteryDatabase()
-    db.connect()
-    
-    latest_in_db = db.get_latest_draw_number()
-    if not latest_in_db:
-        latest_in_db = 0
-    
-    db.close()
-    
-    # Fetch latest from website
-    latest_result = fetch_latest_result()
-    if not latest_result:
-        return jsonify({"success": False, "error": "Failed to fetch latest from website"}), 500
-    
-    latest_online = latest_result['draw_number']
-    
-    missing_draws = []
-    if latest_online > latest_in_db:
-        missing_draws = list(range(latest_in_db + 1, latest_online + 1))
-    
-    return jsonify({
-        "success": True,
-        "latest_in_db": latest_in_db,
-        "latest_online": latest_online,
-        "missing_draws": missing_draws,
-        "count": len(missing_draws)
-    })
-
-
-@app.route('/get_draw_info', methods=['GET'])
-def get_draw_info():
-    """Get draw date info from dropdown (doesn't fetch actual numbers)"""
-    draw_number = request.args.get('draw_number', type=int)
-    
-    if not draw_number or draw_number <= 0:
-        return jsonify({"success": False, "error": "Invalid draw number"}), 400
-    
-    from lotto_scraper import fetch_draw_result
-    
-    # Fetch to get date only (numbers will be wrong for historical draws)
-    result = fetch_draw_result(draw_number)
-    
-    if result:
-        return jsonify({
-            "success": True,
-            "draw_number": result['draw_number'],
-            "date": result['date'],
-            "note": "Numbers must be entered manually for historical draws"
-        })
-    else:
-        return jsonify({"success": False, "error": "Draw not found"}), 404
-
-
-@app.route('/import_missing', methods=['POST'])
-def import_missing():
-    """Import only the latest draw (password protected)"""
-    ADD_RESULT_PASSWORD = "Xhknrhkhui"
-    
-    password = request.form.get('password', '')
-    if password != ADD_RESULT_PASSWORD:
-        return jsonify({"success": False, "error": "Incorrect password"}), 403
-    
-    db = LotteryDatabase()
-    db.connect()
-    
-    latest_in_db = db.get_latest_draw_number()
-    if not latest_in_db:
-        latest_in_db = 0
-    
-    # Fetch latest from website
-    latest_result = fetch_latest_result()
-    if not latest_result:
-        db.close()
-        return jsonify({"success": False, "error": "Failed to fetch from website"}), 500
-    
-    latest_online = latest_result['draw_number']
-    
-    # Check if already up to date
-    if latest_online <= latest_in_db:
-        db.close()
-        return jsonify({
-            "success": True,
-            "imported": [],
-            "imported_count": 0,
-            "message": "Database is already up to date!"
-        })
-    
-    # Import ONLY the latest draw (the website can only show current draw's numbers)
-    try:
-        success = db.add_result(
-            latest_result['draw_number'],
-            latest_result['date'],
-            latest_result['numbers'],
-            latest_result['strong_number']
-        )
-        
-        db.close()
-        
-        if success:
-            still_missing = list(range(latest_in_db + 1, latest_online))
-            return jsonify({
-                "success": True,
-                "imported": [latest_result['draw_number']],
-                "imported_count": 1,
-                "still_missing": still_missing,
-                "message": f"Imported latest draw #{latest_result['draw_number']}. {len(still_missing)} older draw(s) need manual entry."
-            })
-        else:
-            return jsonify({"success": False, "error": "Failed to save to database"}), 500
-            
-    except Exception as e:
-        db.close()
-        return jsonify({"success": False, "error": f"Error: {str(e)}"}), 500
-
+    return render_template('history.html', results=results, page=page, total_pages=total_pages, total_results=total_results)
 
 @app.route('/api/cron/update')
 def cron_update():
     """Secure endpoint for Cloud Scheduler to trigger updates"""
-    # Use the same password as other admin functions for simple security
-    # In production, Cloud Scheduler can use OIDC tokens for better security
     auth_key = request.args.get('key')
     if auth_key != "Xhknrhkhui":
         return jsonify({"success": False, "error": "Unauthorized"}), 403
-    
     try:
         from auto_updater import check_and_import_all_missing
         success = check_and_import_all_missing()
-        return jsonify({
-            "success": True, 
-            "message": "Cron job completed", 
-            "updates_found": success
-        })
+        return jsonify({"success": True, "message": "Cron job completed", "updates_found": success})
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
-        print(f"Cron Error: {error_details}")
-        return jsonify({
-            "success": False, 
-            "error": str(e),
-            "traceback": error_details
-        }), 500
-
-
+        return jsonify({"success": False, "error": str(e), "traceback": error_details}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
-
-
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

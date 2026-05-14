@@ -373,7 +373,15 @@ def cron_update():
             "updates_found": success
         })
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Cron Error: {error_details}")
+        return jsonify({
+            "success": False, 
+            "error": str(e),
+            "traceback": error_details
+        }), 500
+
 
 
 if __name__ == '__main__':

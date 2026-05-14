@@ -42,9 +42,9 @@ def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
         if not select:
             return None
         
-        # In the new layout, the latest draw is the first option
-        target_option = select.find('option')
-
+        # If no specific draw requested, get the first (latest)
+        if draw_number is None:
+            target_option = select.find('option')
         else:
             # Find the option for the specific draw number
             target_option = None
@@ -52,6 +52,7 @@ def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
                 if str(draw_number) in option.text:
                     target_option = option
                     break
+
         
         if not target_option:
             return None

@@ -44,12 +44,16 @@ def check_and_import_all_missing():
         
         # Check if we need to import
         if latest_online > latest_in_db:
-            missing_count = latest_online - latest_in_db
-            print(f"  → Found {missing_count} missing draw(s)")
+            # Limit to max 100 draws at a time to prevent timeouts
+            start_draw = max(latest_in_db + 1, latest_online - 100)
+            missing_count = latest_online - start_draw + 1
             
-            # Fetch ALL missing draws using Excel API
-            print(f"  → Fetching draws {latest_in_db + 1} to {latest_online} using Excel API...")
-            missing_draws = fetch_missing_draws_excel(latest_in_db + 1, latest_online)
+            print(f"  → Found missing draws. Fetching up to {missing_count} latest draws (from #{start_draw} to #{latest_online})")
+            
+            # Fetch missing draws using Excel API
+            print(f"  → Fetching draws using Excel API...")
+            missing_draws = fetch_missing_draws_excel(start_draw, latest_online)
+
             
             if not missing_draws:
                 print("  ✗ Failed to fetch draws from Excel API")

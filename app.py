@@ -355,77 +355,22 @@ def import_missing():
         return jsonify({"success": False, "error": f"Error: {str(e)}"}), 500
 
 
-@app.route('/api/auto_updater/status')
-def auto_updater_status():
-    """Get auto-updater status"""
-    return jsonify({
-        "enabled": auto_updater_enabled,
-        "running": auto_updater_thread is not None and auto_updater_thread.is_alive()
-    })
-
-
-@app.route('/api/auto_updater/start', methods=['POST'])
-def start_auto_updater():
-    """Start the auto-updater"""
-    global auto_updater_enabled, auto_updater_thread
-    
-    password = request.form.get('password', '')
-    if password != "Xhknrhkhui":
-        return jsonify({"success": False, "error": "Incorrect password"}), 403
-    
-    if auto_updater_enabled:
-        return jsonify({"success": False, "error": "Auto-updater is already running"})
+@app.route('/api/cron/update')
+def cron_update():
+    """Secure endpoint for Cloud Scheduler to trigger updates"""
+    # Use the same password as other admin functions for simple security
+    # In production, Cloud Scheduler can use OIDC tokens for better security
+    auth_key = request.args.get('key')
+    if auth_key != "Xhknrhkhui":
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
     
     try:
-        from apscheduler.schedulers.background import BackgroundScheduler
-        from auto_updater import check_and_import_latest
-        
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(
-            check_and_import_latest,
-            'interval',
-            hours=1,
-            id='lottery_updater'
-        )
-        scheduler.start()
-        
-        auto_updater_enabled = True
-        
-        # Run once immediately
-        def run_first_check():
-            check_and_import_latest()
-        
-        auto_updater_thread = threading.Thread(target=run_first_check)
-        auto_updater_thread.start()
-        
+        from auto_updater import check_and_import_all_missing
+        success = check_and_import_all_missing()
         return jsonify({
-            "success": True,
-            "message": "Auto-updater started! Will check every hour."
-        })
-    
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route('/api/auto_updater/check_now', methods=['POST'])
-def check_now():
-    """Manually trigger a check"""
-    password = request.form.get('password', '')
-    if password != "Xhknrhkhui":
-        return jsonify({"success": False, "error": "Incorrect password"}), 403
-    
-    try:
-        from auto_updater import check_and_import_latest
-        
-        def run_check():
-            check_and_import_latest()
-        
-        thread = threading.Thread(target=run_check)
-        thread.start()
-        
-        return jsonify({
-            "success": True,
-            "message": "Check started in background"
+            "success": True, 
+            "message": "Cron job completed", 
+            "updates_found": success
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -433,5 +378,6 @@ def check_now():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
 
 

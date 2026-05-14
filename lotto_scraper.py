@@ -33,14 +33,18 @@ def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        # Find the dropdown with draw numbers
-        select = soup.find('select')
+        # Find the specific dropdown for lottery results
+        select = soup.find('select', id='results-options')
+        if not select:
+            # Fallback to any select if ID not found
+            select = soup.find('select')
+            
         if not select:
             return None
         
-        # If no specific draw requested, get the first (latest)
-        if draw_number is None:
-            target_option = select.find('option')
+        # In the new layout, the latest draw is the first option
+        target_option = select.find('option')
+
         else:
             # Find the option for the specific draw number
             target_option = None

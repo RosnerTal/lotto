@@ -44,9 +44,10 @@ def check_and_import_all_missing():
         
         # Check if we need to import
         if latest_online > latest_in_db:
-            # Limit to max 100 draws at a time to prevent timeouts
-            start_draw = max(latest_in_db + 1, latest_online - 100)
+            # Ultra-Light fetch: Only 5 draws at a time to prevent 503 errors
+            start_draw = max(latest_in_db + 1, latest_online - 5)
             missing_count = latest_online - start_draw + 1
+
             
             print(f"  → Found missing draws. Fetching up to {missing_count} latest draws (from #{start_draw} to #{latest_online})")
             

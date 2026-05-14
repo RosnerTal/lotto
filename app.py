@@ -4,10 +4,7 @@ import os
 import threading
 
 # Auto-detect environment and use appropriate database
-@app.route('/health')
-def health_check():
-    """Simple diagnostic endpoint"""
-    return "LottoFire Server is ALIVE!", 200
+
 
 # Use Firestore for both local and cloud environments
 from database import LotteryDatabase
@@ -17,6 +14,12 @@ from predictor import LotteryPredictor
 from lotto_scraper import fetch_latest_result
 
 app = Flask(__name__)
+
+@app.route('/health')
+def health_check():
+    """Simple diagnostic endpoint"""
+    return "LottoFire Server is ALIVE!", 200
+
 
 # Auto-updater status
 auto_updater_enabled = False

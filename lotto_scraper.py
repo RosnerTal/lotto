@@ -31,10 +31,10 @@ def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
         if not select:
             return None
         
-        # Determine which option to use
-        if draw_number is None:
-            target_option = select.find('option')
-        else:
+        # Determine which option to use (default to latest)
+        target_option = select.find('option')
+        
+        if draw_number is not None:
             target_option = None
             for option in select.find_all('option'):
                 if str(draw_number) in option.text:
@@ -114,7 +114,3 @@ def fetch_multiple_draws(start_draw: int, end_draw: int) -> list:
         return sorted(results, key=lambda x: x['draw_number'])
     except:
         return results
-
-if __name__ == "__main__":
-    result = fetch_latest_result()
-    print(result)

@@ -152,6 +152,80 @@ def cron_update():
     except Exception as e:
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
+@app.route('/api/fetch_latest')
+def api_fetch_latest():
+    try:
+        from lotto_scraper import fetch_latest_result
+        result = fetch_latest_result()
+        if result:
+            return jsonify({"success": True, "data": result})
+        return jsonify({"success": False, "error": "Failed to fetch latest result"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/check_missing')
+def api_check_missing():
+    try:
+        from lotto_scraper import fetch_latest_result
+        db = LotteryDatabase()
+        db.connect()
+        latest_in_db = db.get_latest_draw_number() or 0
+        db.close()
+        
+        latest_result = fetch_latest_result()
+        if not latest_result:
+            return jsonify({"success": False, "error": "Failed to fetch from website"})
+            
+        latest_online = latest_result['draw_number']
+        missing_count = max(0, latest_online - latest_in_db)
+        
+        missing_draws = list(range(latest_in_db + 1, latest_online + 1)) if missing_count > 0 else []
+        
+        return jsonify({
+            "success": True,
+            "count": missing_count,
+            "latest_in_db": latest_in_db,
+            "latest_online": latest_online,
+            "missing_draws": missing_draws
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/import_missing', methods=['POST'])
+def import_missing():
+    password = request.form.get('password')
+    if password != "Xhknrhkhui":
+        return jsonify({"success": False, "error": "Incorrect password"})
+        
+    try:
+        from auto_updater import check_and_import_all_missing
+        success = check_and_import_all_missing()
+        if success:
+            return jsonify({"success": True, "message": "Successfully imported missing draws"})
+        else:
+            return jsonify({"success": False, "error": "No new draws were imported or an error occurred"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/get_draw_info')
+def get_draw_info():
+    draw_number = request.args.get('draw_number', type=int)
+    if not draw_number:
+        return jsonify({"success": False, "error": "Missing draw_number"})
+        
+    try:
+        from lotto_excel_scraper import fetch_missing_draws_excel
+        results = fetch_missing_draws_excel(draw_number, draw_number)
+        if results and len(results) > 0:
+            return jsonify({
+                "success": True, 
+                "draw_number": results[0]['draw_number'],
+                "date": results[0]['date']
+            })
+        return jsonify({"success": False, "error": "Draw not found"})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 scheduler_running = False
 
 def start_scheduler():
@@ -180,9 +254,15 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
 @app.route('/api/auto_updater/status')
 def auto_updater_status():
     global scheduler_running
+    try:
+        from auto_updater import LAST_AUTO_UPDATE_TIME
+    except ImportError:
+        LAST_AUTO_UPDATE_TIME = "Never"
+        
     return jsonify({
         "enabled": True,
-        "running": scheduler_running
+        "running": scheduler_running,
+        "last_update": LAST_AUTO_UPDATE_TIME
     })
 
 if __name__ == '__main__':

@@ -15,9 +15,13 @@ from lotto_scraper import fetch_latest_result
 
 
 
+LAST_AUTO_UPDATE_TIME = "Never"
+
 def check_and_import_all_missing():
     """Check for new lottery results and import ALL missing draws"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    global LAST_AUTO_UPDATE_TIME
+    LAST_AUTO_UPDATE_TIME = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = LAST_AUTO_UPDATE_TIME
     print(f"\n[{timestamp}] Checking for new lottery results...")
     
     try:

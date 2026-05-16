@@ -1,139 +1,106 @@
 """
-Scraper to fetch the latest lottery result from lottosheli.co.il
-Note: Can only fetch the currently displayed draw due to JavaScript limitations
+Scraper to fetch the latest lottery result from the official pais.co.il
 """
 import requests
 from bs4 import BeautifulSoup
 from typing import Optional, Dict
 import re
 
-
-def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
+def fetch_latest_result() -> Optional[Dict]:
     """
-    Fetch a lottery result from lottosheli.co.il
+    Fetch the latest lottery result from pais.co.il
     """
     try:
-        base_url = "https://lottosheli.co.il/results/lotto"
+        url = "https://www.pais.co.il/lotto/"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
         
-        session = requests.Session()
-        response = session.get(base_url, headers=headers, timeout=15)
+        response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         
         soup = BeautifulSoup(response.content, 'html.parser')
         
-        select = soup.find('select', id='results-options')
-        if not select:
-            select = soup.find('select')
-            
-        if not select:
+        # 1. Get draw number
+        title_element = soup.find('h3', class_='home_news_title category')
+        if not title_element:
             return None
-        
-        # Determine which option to use (default to latest)
-        target_option = select.find('option')
-        
-        if draw_number is not None:
-            target_option = None
-            for option in select.find_all('option'):
-                if str(draw_number) in option.text:
-                    target_option = option
-                    break
-        
-        if not target_option:
-            return None
-        
-        option_text = target_option.text.strip()
-        option_value = target_option.get('value', '')
-        
-        draw_match = re.search(r'(\d+).*?(\d{2}\.\d{2}\.\d{4})', option_text)
+        title_text = title_element.text
+        draw_match = re.search(r'\d+', title_text)
         if not draw_match:
             return None
+        draw_num = int(draw_match.group())
         
-        found_draw_number = int(draw_match.group(1))
-        date_str = draw_match.group(2)  # DD.MM.YYYY
-        date_formatted = date_str.replace('.', '/')
-        
-        # Find the lottery balls (look for elements with ball classes)
-        numbers = []
-        strong_number = None
-        
-        # Try to find balls by their common class names or containers
-        # In the new layout, balls are often in divs or spans with specific classes
-        ball_containers = soup.find_all(['div', 'span'], class_=re.compile(r'ball|result|number', re.I))
-        
-        if not ball_containers:
-            # Fallback: look for all circles/balls
-            ball_containers = soup.select('.lotto-ball, .strong-ball, .ball')
-
-        for container in ball_containers:
-            val = container.text.strip()
-            if val.isdigit():
-                num = int(val)
-                if 'strong' in str(container.get('class', [])).lower():
-                    strong_number = num
-                elif 1 <= num <= 37 and len(numbers) < 6:
-                    numbers.append(num)
-
-        # Final Fallback: use the regex but be more specific
-        if len(numbers) < 6 or strong_number is None:
-            all_digits = soup.find_all(string=re.compile(r'^\d{1,2}$'))
-            # Filter to unique digits that look like lottery results
-            potential_nums = []
-            for d in all_digits:
-                n = int(d.strip())
-                if 1 <= n <= 37:
-                    potential_nums.append(n)
-            
-            # Usually the last 7 digits on the results page are the numbers (6+1)
-            if len(potential_nums) >= 7:
-                # Assuming the last 7 are the results
-                numbers = potential_nums[-7:-1]
-                strong_number = potential_nums[-1]
-        
-        if len(numbers) != 6 or strong_number is None:
+        # 2. Get date
+        date_div = title_element.find_next_sibling('div')
+        if not date_div:
             return None
+        date_text = date_div.text
+        
+        months = {
+            'בינואר': '01', 'בפברואר': '02', 'במרץ': '03', 'באפריל': '04',
+            'במאי': '05', 'ביוני': '06', 'ביולי': '07', 'באוגוסט': '08',
+            'בספטמבר': '09', 'באוקטובר': '10', 'בנובמבר': '11', 'בדצמבר': '12'
+        }
+        
+        day_match = re.search(r'\s(\d{1,2})\s', date_text)
+        year_match = re.search(r'\s(\d{4})\s', date_text)
+        
+        if not day_match or not year_match:
+            return None
+            
+        day = day_match.group(1).zfill(2)
+        year = year_match.group(1)
+        
+        month = '01'
+        for m_name, m_num in months.items():
+            if m_name in date_text:
+                month = m_num
+                break
+                
+        date_formatted = f'{day}/{month}/{year}'
+        
+        # 3. Get numbers
+        loto_group = soup.find('div', class_='cat_h_data_group loto')
+        if not loto_group:
+            return None
+            
+        num_divs = loto_group.find_all('div', class_='loto_info_num')
+        numbers = []
+        for d in num_divs:
+            val = d.text.strip()
+            if val.isdigit():
+                numbers.append(int(val))
+                
+        if len(numbers) != 6:
+            return None
+            
+        # 4. Get strong number
+        strong_group = soup.find('div', class_='cat_h_data_group strong_num')
+        if not strong_group:
+            return None
+            
+        strong_div = strong_group.find('div', class_='loto_info_num strong')
+        if not strong_div or not strong_div.text.strip().isdigit():
+            return None
+            
+        strong_number = int(strong_div.text.strip())
         
         return {
-            'draw_number': found_draw_number,
+            'draw_number': draw_num,
             'date': date_formatted,
             'numbers': sorted(numbers),
             'strong_number': strong_number
         }
-    
+        
     except Exception as e:
         print(f"Error fetching lottery results: {e}")
         return None
 
-
-def fetch_latest_result() -> Optional[Dict]:
-    """Fetch the latest lottery result."""
-    return fetch_draw_result(None)
-
+def fetch_draw_result(draw_number: int = None) -> Optional[Dict]:
+    """Fallback - currently only fetches latest from Pais."""
+    return fetch_latest_result()
 
 def fetch_multiple_draws(start_draw: int, end_draw: int) -> list:
-    """Fetch multiple draws by parsing dropdown options."""
-    results = []
-    try:
-        url = "https://lottosheli.co.il/results/lotto"
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        response = requests.get(url, headers=headers, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        select = soup.find('select')
-        if not select: return results
-        
-        for option in select.find_all('option'):
-            option_text = option.text.strip()
-            draw_match = re.search(r'(\d+).*?(\d{2}\.\d{2}\.\d{4})', option_text)
-            if draw_match:
-                draw_num = int(draw_match.group(1))
-                if start_draw <= draw_num <= end_draw:
-                    results.append({
-                        'draw_number': draw_num,
-                        'date': draw_match.group(2).replace('.', '/'),
-                        'needs_manual_entry': True
-                    })
-        return sorted(results, key=lambda x: x['draw_number'])
-    except:
-        return results
+    """Fallback."""
+    return []

@@ -39,7 +39,7 @@ def check_and_import_all_missing():
         latest_result = fetch_latest_result()
         
         if not latest_result:
-            print("  ✗ Failed to fetch from website")
+            print("  [X] Failed to fetch from website")
             db.close()
             return False
         
@@ -51,17 +51,24 @@ def check_and_import_all_missing():
             start_draw = latest_in_db + 1
             missing_count = latest_online - start_draw + 1
 
-            print(f"  → Found missing draws. Fetching up to {missing_count} latest draws (from #{start_draw} to #{latest_online})")
+            print(f"  [->] Found missing draws. Fetching up to {missing_count} latest draws (from #{start_draw} to #{latest_online})")
             
-            from lotto_excel_scraper import fetch_missing_draws_excel
-            missing_draws = fetch_missing_draws_excel(start_draw, latest_online)
+            missing_draws = []
+            if missing_count == 1:
+                # We already fetched the latest result, just use it
+                missing_draws = [latest_result]
+                print("  [OK] Using already fetched latest result")
+            else:
+                # Try Excel scraper for multiple missing draws
+                from lotto_excel_scraper import fetch_missing_draws_excel
+                missing_draws = fetch_missing_draws_excel(start_draw, latest_online)
             
             if not missing_draws:
-                print("  ✗ Failed to fetch any missing draws using Excel scraper")
+                print("  [X] Failed to fetch missing draws")
                 db.close()
                 return False
 
-            print(f"  ✓ Fetched {len(missing_draws)} draw(s)")
+            print(f"  [OK] Ready to import {len(missing_draws)} draw(s)")
             
             # Import each draw
             imported = []
@@ -78,14 +85,14 @@ def check_and_import_all_missing():
                     
                     if success:
                         imported.append(draw['draw_number'])
-                        print(f"  ✓ Imported Draw #{draw['draw_number']}: {draw['numbers']} + {draw['strong_number']}")
+                        print(f"  [OK] Imported Draw #{draw['draw_number']}: {draw['numbers']} + {draw['strong_number']}")
                     else:
                         failed.append(draw['draw_number'])
-                        print(f"  ✗ Failed to save Draw #{draw['draw_number']}")
+                        print(f"  [X] Failed to save Draw #{draw['draw_number']}")
                         
                 except Exception as e:
                     failed.append(draw['draw_number'])
-                    print(f"  ✗ Error importing Draw #{draw['draw_number']}: {e}")
+                    print(f"  [X] Error importing Draw #{draw['draw_number']}: {e}")
             
             db.close()
             
@@ -96,12 +103,12 @@ def check_and_import_all_missing():
             
             return len(imported) > 0
         else:
-            print("  ✓ Database is up to date")
+            print("  [OK] Database is up to date")
             db.close()
             return False
             
     except Exception as e:
-        print(f"  ✗ Error: {e}")
+        print(f"  [X] Error: {e}")
         try:
             db.close()
         except:

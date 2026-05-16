@@ -152,6 +152,39 @@ def cron_update():
     except Exception as e:
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
+scheduler_running = False
+
+def start_scheduler():
+    global scheduler_running
+    if not scheduler_running:
+        try:
+            from apscheduler.schedulers.background import BackgroundScheduler
+            from auto_updater import check_and_import_all_missing
+            
+            scheduler = BackgroundScheduler()
+            scheduler.add_job(func=check_and_import_all_missing, trigger="interval", hours=1, id='lotto_updater')
+            scheduler.start()
+            scheduler_running = True
+            print("Background scheduler started successfully.")
+            
+            # Run once immediately in background
+            import threading
+            threading.Thread(target=check_and_import_all_missing, daemon=True).start()
+        except Exception as e:
+            print(f"Failed to start scheduler: {e}")
+
+# Start the scheduler if we are not in the reloader process
+if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+    start_scheduler()
+
+@app.route('/api/auto_updater/status')
+def auto_updater_status():
+    global scheduler_running
+    return jsonify({
+        "enabled": True,
+        "running": scheduler_running
+    })
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(debug=False, host='0.0.0.0', port=port)

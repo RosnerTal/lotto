@@ -10,8 +10,10 @@
       {
         "source": "**",
         "run": {
-          "serviceId": "lotto-app",
-          "region": "us-central1"
+          "serviceId": "lotto",
+          "region": "me-west1"
+
+
         }
       }
     ]

@@ -44,31 +44,19 @@ def check_and_import_all_missing():
         
         # Check if we need to import
         if latest_online > latest_in_db:
-            # Ultra-Light fetch: Only 5 draws at a time to prevent 503 errors
-            start_draw = max(latest_in_db + 1, latest_online - 5)
+            start_draw = latest_in_db + 1
             missing_count = latest_online - start_draw + 1
 
-            
             print(f"  → Found missing draws. Fetching up to {missing_count} latest draws (from #{start_draw} to #{latest_online})")
             
-            # Lightweight fetch: Get each missing draw one by one
-            from lotto_scraper import fetch_draw_result
-            import time
-            
-            missing_draws = []
-            for d_num in range(start_draw, latest_online + 1):
-                print(f"  → Fetching Draw #{d_num}...")
-                res = fetch_draw_result(d_num)
-                if res:
-                    missing_draws.append(res)
-                    time.sleep(0.5) # Avoid hammering the server
+            from lotto_excel_scraper import fetch_missing_draws_excel
+            missing_draws = fetch_missing_draws_excel(start_draw, latest_online)
             
             if not missing_draws:
-                print("  ✗ Failed to fetch any missing draws")
+                print("  ✗ Failed to fetch any missing draws using Excel scraper")
                 db.close()
                 return False
 
-            
             print(f"  ✓ Fetched {len(missing_draws)} draw(s)")
             
             # Import each draw

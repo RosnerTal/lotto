@@ -235,11 +235,11 @@ def start_scheduler():
             from apscheduler.schedulers.background import BackgroundScheduler
             from auto_updater import check_and_import_all_missing
             
-            scheduler = BackgroundScheduler()
-            scheduler.add_job(func=check_and_import_all_missing, trigger="interval", hours=1, id='lotto_updater')
+            scheduler = BackgroundScheduler(timezone='Asia/Jerusalem')
+            scheduler.add_job(func=check_and_import_all_missing, trigger="cron", hour=0, minute=5, id='lotto_updater')
             scheduler.start()
             scheduler_running = True
-            print("Background scheduler started successfully.")
+            print("Background scheduler started successfully (Daily at 00:05 Israel Time).")
             
             # Run once immediately in background
             import threading

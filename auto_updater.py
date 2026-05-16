@@ -129,20 +129,21 @@ def run_scheduler():
     print("=" * 60)
     print("Israeli Lottery Auto-Updater Started")
     print("=" * 60)
-    print("Checking for new results every hour")
+    print("Checking for new results every day at 00:05 AM Israel Time")
     print("Press Ctrl+C to stop")
     print("=" * 60)
     
-    scheduler = BlockingScheduler()
+    scheduler = BlockingScheduler(timezone='Asia/Jerusalem')
     
     # Run immediately on start
     check_and_import_all_missing()
     
-    # Schedule to run every hour
+    # Schedule to run every day at 00:05 AM
     scheduler.add_job(
         check_and_import_all_missing,
-        'interval',
-        hours=1,
+        'cron',
+        hour=0,
+        minute=5,
         id='lottery_updater',
         name='Check for new lottery results'
     )

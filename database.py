@@ -3,6 +3,11 @@ from firebase_admin import credentials, firestore
 from datetime import datetime
 from typing import List, Tuple, Optional
 import os
+import time
+
+_results_cache = None
+_cache_timestamp = 0
+CACHE_TTL = 3600  # 1 hour
 
 class LotteryDatabase:
     def __init__(self):
@@ -56,6 +61,12 @@ class LotteryDatabase:
     
     def get_all_results(self) -> List[Tuple]:
         """Get all lottery results ordered by date descending."""
+        global _results_cache, _cache_timestamp
+        
+        # Use cache if available and fresh
+        if _results_cache is not None and (time.time() - _cache_timestamp) < CACHE_TTL:
+            return _results_cache
+            
         # Note: Firestore might need an index for this if not already created
         docs = self.db.collection('draws').order_by('draw_date', direction=firestore.Query.DESCENDING).stream()
         results = []
@@ -68,6 +79,9 @@ class LotteryDatabase:
                 nums[0], nums[1], nums[2], nums[3], nums[4], nums[5],
                 d['strong_number']
             ))
+            
+        _results_cache = results
+        _cache_timestamp = time.time()
         return results
     
     def get_latest_results(self, limit: int = 10) -> List[Tuple]:

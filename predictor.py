@@ -6,6 +6,11 @@ import random
 import hashlib
 from datetime import datetime, timedelta
 import os
+import time
+
+_predictor_cache = None
+_predictor_cache_time = 0
+PREDICTOR_CACHE_TTL = 3600  # 1 hour
 
 class LotteryPredictor:
     def __init__(self):
@@ -29,8 +34,10 @@ class LotteryPredictor:
 
     def _get_filtered_draws(self) -> List[Dict]:
         """Fetch and filter draws from Firestore (last 4 years)."""
-        if self._all_draws is not None:
-            return self._all_draws
+        global _predictor_cache, _predictor_cache_time
+        
+        if _predictor_cache is not None and (time.time() - _predictor_cache_time) < PREDICTOR_CACHE_TTL:
+            return _predictor_cache
 
         # Calculate 4 years ago
         four_years_ago = (datetime.now() - timedelta(days=4*365)).strftime("%Y-%m-%d")
@@ -48,7 +55,8 @@ class LotteryPredictor:
             if d.get('strong_number', 0) <= 7 and all(1 <= n <= 37 for n in d.get('numbers', [])):
                 draws.append(d)
         
-        self._all_draws = draws
+        _predictor_cache = draws
+        _predictor_cache_time = time.time()
         return draws
 
     def get_all_numbers(self, limit: int = None) -> List[List[int]]:

@@ -33,18 +33,14 @@ class LotteryPredictor:
         pass
 
     def _get_filtered_draws(self) -> List[Dict]:
-        """Fetch and filter draws from Firestore (last 4 years)."""
+        """Fetch and filter draws from Firestore."""
         global _predictor_cache, _predictor_cache_time
         
         if _predictor_cache is not None and (time.time() - _predictor_cache_time) < PREDICTOR_CACHE_TTL:
             return _predictor_cache
-
-        # Calculate 4 years ago
-        four_years_ago = (datetime.now() - timedelta(days=4*365)).strftime("%Y-%m-%d")
         
-        # Firestore query
+        # Firestore query - get all draws (old format draws were already removed from the database)
         docs = self.db.collection('draws')\
-            .where('draw_date', '>=', four_years_ago)\
             .order_by('draw_date', direction=firestore.Query.DESCENDING)\
             .stream()
         

@@ -17,17 +17,38 @@ from lotto_scraper import fetch_latest_result
 
 LAST_AUTO_UPDATE_TIME = "Never"
 
-def check_and_import_all_missing():
+def check_and_import_all_missing(force=False):
     """Check for new lottery results and import ALL missing draws"""
     global LAST_AUTO_UPDATE_TIME
-    LAST_AUTO_UPDATE_TIME = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    timestamp = LAST_AUTO_UPDATE_TIME
-    print(f"\n[{timestamp}] Checking for new lottery results...")
     
     try:
         # Get latest from database
         db = LotteryDatabase()
         db.connect()
+        
+        # Check throttling if not forced
+        if not force:
+            last_check_str = db.get_last_update_time()
+            if last_check_str != "Never":
+                try:
+                    last_check_dt = datetime.strptime(last_check_str, "%Y-%m-%d %H:%M:%S")
+                    time_diff = (datetime.now() - last_check_dt).total_seconds()
+                    # Skip if last check was less than 4 hours (14400 seconds) ago
+                    if time_diff < 14400:
+                        print(f"\n[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Skipping auto-update check (last check was {time_diff/60:.1f} minutes ago).")
+                        LAST_AUTO_UPDATE_TIME = last_check_str
+                        db.close()
+                        return False
+                except Exception as parse_err:
+                    print(f"  [X] Error parsing last check time: {parse_err}")
+        
+        # Proceed with check
+        LAST_AUTO_UPDATE_TIME = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = LAST_AUTO_UPDATE_TIME
+        print(f"\n[{timestamp}] Checking for new lottery results...")
+        
+        # Save check time in Firestore
+        db.set_last_update_time(timestamp)
         
         latest_in_db = db.get_latest_draw_number()
         if not latest_in_db:

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LottoFire Auto-Filler</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <div class="logo-area">
+        <svg class="fire-icon" viewBox="0 0 128 128" width="24" height="24">
+          <path d="M64 25 C78 45, 84 55, 84 75 C84 92, 70 102, 64 102 C58 102, 44 92, 44 75 C44 55, 50 45, 64 25 Z" fill="#f43f5e" />
+          <path d="M64 45 C72 60, 75 66, 75 78 C75 88, 68 94, 64 94 C60 94, 53 88, 53 78 C53 66, 56 60, 64 45 Z" fill="#eab308" />
+        </svg>
+        <h1>LottoFire <span class="accent">Filler</span></h1>
+      </div>
+      <div class="actions-area">
+        <button id="import-btn" class="btn btn-import hidden">⚡ Import All</button>
+        <button id="fill-all-btn" class="btn btn-fill-all hidden">🚀 Auto-Fill All</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- Status Notice Banner -->
+      <div id="status-notice" class="status-banner info">
+        Open LottoFire predict page to copy sets.
+      </div>
+
+      <div id="no-sets" class="empty-state">
+        <div class="empty-icon">🎲</div>
+        <p>No lottery sets copied yet.</p>
+        <p class="subtitle">Go to the LottoFire prediction page and open this popup to click <strong>"Import All"</strong>.</p>
+      </div>
+
+      <div id="sets-container" class="sets-list hidden">
+        <div class="section-title">
+          <span>Copied Prediction Sets</span>
+          <span id="set-count" class="count-badge">0</span>
+        </div>
+        <div id="sets-list" class="scroll-container">
+          <!-- Dynamically populated sets -->
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <button id="clear-btn" class="btn btn-danger hidden" style="width: 100%;">Clear Stored Sets</button>
+    </footer>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

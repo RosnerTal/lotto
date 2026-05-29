@@ -48,12 +48,12 @@
             </div>
             <div class="lottery-numbers" style="margin: 1.5rem 0;">
                 {% for num in pred.numbers %}
-                <span class="ball">{{ num }}</span>
+                <span class="ball" data-number="{{ num }}">{{ num }}</span>
                 {% endfor %}
             </div>
             <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
                 <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-muted);">STRONG</span>
-                <span class="ball strong">{{ pred.strong_number }}</span>
+                <span class="ball strong" data-strong="{{ pred.strong_number }}">{{ pred.strong_number }}</span>
             </div>
         </div>
         {% endfor %}

@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "LottoFire Auto-Filler",
+  "version": "1.3",
+  "description": "Extracts lottery predictions from LottoFire and auto-fills them into the LottoSheli board in one click.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*.lottosheli.co.il/*",
+    "https://lotto-bc9e0.web.app/*",
+    "https://lotto-bc9e0.firebaseapp.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.svg",
+      "48": "icon.svg",
+      "128": "icon.svg"
+    }
+  },
+  "icons": {
+    "16": "icon.svg",
+    "48": "icon.svg",
+    "128": "icon.svg"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.lottosheli.co.il/*"
+      ],
+      "js": ["content-lottosheli.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

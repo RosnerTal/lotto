@@ -114,6 +114,29 @@ class LotteryDatabase:
             return doc.to_dict()['draw_number']
         return None
 
+    def set_last_update_time(self, timestamp: str) -> bool:
+        """Save the last check timestamp in Firestore settings."""
+        try:
+            doc_ref = self.db.collection('settings').document('updater')
+            doc_ref.set({
+                'last_update_time': timestamp
+            }, merge=True)
+            return True
+        except Exception as e:
+            print(f"Error saving last update time: {e}")
+            return False
+
+    def get_last_update_time(self) -> str:
+        """Retrieve the last check timestamp from Firestore settings."""
+        try:
+            doc = self.db.collection('settings').document('updater').get()
+            if doc.exists:
+                return doc.to_dict().get('last_update_time', 'Never')
+            return 'Never'
+        except Exception as e:
+            print(f"Error reading last update time: {e}")
+            return 'Never'
+
 # Keep the same interface as before
 def initialize_database():
     """Initialization is handled lazily in Firestore."""

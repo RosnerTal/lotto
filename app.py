@@ -147,7 +147,7 @@ def cron_update():
         return jsonify({"success": False, "error": "Unauthorized"}), 403
     try:
         from auto_updater import check_and_import_all_missing
-        success = check_and_import_all_missing()
+        success = check_and_import_all_missing(force=True)
         return jsonify({"success": True, "message": "Cron job completed", "updates_found": success})
     except Exception as e:
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
@@ -254,15 +254,25 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
 @app.route('/api/auto_updater/status')
 def auto_updater_status():
     global scheduler_running
+    last_update = "Never"
     try:
-        from auto_updater import LAST_AUTO_UPDATE_TIME
-    except ImportError:
-        LAST_AUTO_UPDATE_TIME = "Never"
+        from database import LotteryDatabase
+        db = LotteryDatabase()
+        db.connect()
+        last_update = db.get_last_update_time()
+        db.close()
+    except Exception as e:
+        print(f"Error getting updater status: {e}")
+        try:
+            from auto_updater import LAST_AUTO_UPDATE_TIME
+            last_update = LAST_AUTO_UPDATE_TIME
+        except ImportError:
+            pass
         
     return jsonify({
         "enabled": True,
         "running": scheduler_running,
-        "last_update": LAST_AUTO_UPDATE_TIME
+        "last_update": last_update
     })
 
 if __name__ == '__main__':

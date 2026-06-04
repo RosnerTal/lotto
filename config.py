@@ -21,3 +21,6 @@ else:
     DB_TYPE = 'sqlite'
     SQLITE_PATH = 'lottery.db'
 
+# Application Version (SemVer)
+APP_VERSION = '1.1.0'
+

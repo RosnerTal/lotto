@@ -6,6 +6,12 @@ import traceback
 
 app = Flask(__name__)
 
+from config import APP_VERSION
+
+@app.context_processor
+def inject_version():
+    return dict(app_version=APP_VERSION)
+
 # Safety-wrapped imports
 try:
     from database import LotteryDatabase

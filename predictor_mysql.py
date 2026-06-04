@@ -135,282 +135,198 @@ class LotteryPredictorMySQL:
         sorted_overdue = sorted(last_appearance.items(), key=lambda x: x[1], reverse=True)
         return sorted_overdue[:top_n]
     
-    def predict_frequency_based(self) -> Tuple[List[int], int]:
-        """Predict using frequency analysis."""
+    # Helper methods for statistical filtering
+    def passes_filters(self, numbers: List[int], prev_numbers: List[int]) -> bool:
+        sorted_nums = sorted(numbers)
+        
+        # 1. Sum constraint (80-150 covers 86.8% of draws)
+        s = sum(sorted_nums)
+        if not (80 <= s <= 150):
+            return False
+            
+        # 2. Odd/Even split (2/4, 3/3, 4/2 covers 79.9% of draws)
+        odds = sum(1 for n in sorted_nums if n % 2 != 0)
+        if odds not in (2, 3, 4):
+            return False
+            
+        # 3. High/Low split (2/4, 3/3, 4/2 covers 80.8% of draws)
+        lows = sum(1 for n in sorted_nums if n <= 18)
+        if lows not in (2, 3, 4):
+            return False
+            
+        # 4. Consecutive pairs (0 or 1 covers 82.4% of draws)
+        consecutives = 0
+        for i in range(len(sorted_nums) - 1):
+            if sorted_nums[i+1] - sorted_nums[i] == 1:
+                consecutives += 1
+        if consecutives > 1:
+            return False
+            
+        # 5. Repeats from previous draw (0, 1, or 2 covers 95.4% of draws)
+        if prev_numbers:
+            prev_set = set(prev_numbers)
+            repeats = len(prev_set.intersection(set(sorted_nums)))
+            if repeats > 2:
+                return False
+                
+        # 6. Gaps checks (avoid clusters, max gap between 5 and 18)
+        gaps = [sorted_nums[i+1] - sorted_nums[i] for i in range(len(sorted_nums)-1)]
+        max_gap = max(gaps) if gaps else 0
+        min_gap = min(gaps) if gaps else 0
+        if max_gap > 18 or max_gap < 5:
+            return False
+        if min_gap > 4:
+            return False
+            
+        return True
+
+    def get_valid_prediction(self, generate_base_func) -> Tuple[List[int], int]:
+        draws = self.get_all_numbers(limit=1)
+        prev_numbers = draws[0] if draws else []
+        
+        # Save state to ensure reproducibility for seed
+        rand_state = random.getstate()
+        
+        # Try generating candidates until one passes
+        found = False
+        numbers = []
+        for _ in range(1000):  # limit to prevent infinite loop
+            numbers, _ = generate_base_func(bypass_filters=True)
+            if self.passes_filters(numbers, prev_numbers):
+                found = True
+                break
+                
+        random.setstate(rand_state)
+        
+        if not found:
+            # Fallback if no candidate passed
+            numbers, _ = generate_base_func(bypass_filters=True)
+            
+        # Select strong number using overdue strong numbers model
+        strongs = self.get_all_strong_numbers()
+        last_seen = {i: 0 for i in range(1, 8)}
+        for idx, sn in enumerate(strongs):
+            if sn in last_seen and last_seen[sn] == 0:
+                last_seen[sn] = idx
+                
+        sorted_overdue_sn = sorted(last_seen.items(), key=lambda x: x[1], reverse=True)
+        strong_number = random.choice([sorted_overdue_sn[0][0], sorted_overdue_sn[1][0]])
+        
+        return sorted(numbers), strong_number
+
+    # Prediction strategies with filters and candidate generation
+    def predict_frequency_based(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_frequency_based)
         hot_numbers = self.get_hot_numbers(top_n=15, recent_draws=100)
-        
         if len(hot_numbers) >= 6:
-            numbers = sorted(random.sample(hot_numbers, 6))
+            return random.sample(hot_numbers, 6), 1
         else:
-            numbers = hot_numbers + random.sample(
-                [i for i in range(1, 38) if i not in hot_numbers],
-                6 - len(hot_numbers)
-            )
-            numbers = sorted(numbers)
-        
-        strong_freq = self.strong_number_frequency(limit=100)
-        strong_number = max(strong_freq.items(), key=lambda x: x[1])[0]
-        
-        return numbers, strong_number
-    
-    def predict_balanced(self) -> Tuple[List[int], int]:
-        """Predict using balanced approach."""
-        hot_numbers = self.get_hot_numbers(top_n=10, recent_draws=50)
-        cold_numbers = self.get_cold_numbers(top_n=10, recent_draws=50)
-        
-        selected = []
-        if len(hot_numbers) >= 3:
-            selected.extend(random.sample(hot_numbers, 3))
-        else:
-            selected.extend(hot_numbers)
-        
-        if len(cold_numbers) >= 3:
-            selected.extend(random.sample(cold_numbers, 3))
-        else:
-            selected.extend(cold_numbers)
-        
+            return hot_numbers + random.sample([i for i in range(1, 38) if i not in hot_numbers], 6 - len(hot_numbers)), 1
+
+    def predict_balanced(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_balanced)
+        hot_numbers = self.get_hot_numbers(top_n=12, recent_draws=50)
+        cold_numbers = self.get_cold_numbers(top_n=12, recent_draws=50)
+        selected = random.sample(hot_numbers, min(len(hot_numbers), 3)) + random.sample(cold_numbers, min(len(cold_numbers), 3))
         while len(selected) < 6:
             num = random.randint(1, 37)
-            if num not in selected:
-                selected.append(num)
-        
-        numbers = sorted(selected[:6])
-        
-        strong_freq = self.strong_number_frequency()
-        top_strong = sorted(strong_freq.items(), key=lambda x: x[1], reverse=True)[:3]
-        strong_number = random.choice([num for num, _ in top_strong])
-        
-        return numbers, strong_number
-    
-    def predict_overdue(self) -> Tuple[List[int], int]:
-        """Predict using overdue numbers."""
-        overdue = self.get_overdue_numbers(top_n=12)
+            if num not in selected: selected.append(num)
+        return selected[:6], 1
+
+    def predict_overdue(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_overdue)
+        overdue = self.get_overdue_numbers(top_n=15)
         overdue_numbers = [num for num, _ in overdue]
-        
         if len(overdue_numbers) >= 6:
-            numbers = sorted(random.sample(overdue_numbers, 6))
+            return random.sample(overdue_numbers, 6), 1
         else:
-            numbers = overdue_numbers + random.sample(
-                [i for i in range(1, 38) if i not in overdue_numbers],
-                6 - len(overdue_numbers)
-            )
-            numbers = sorted(numbers[:6])
-        
-        strong_freq = self.strong_number_frequency()
-        strong_number = min(strong_freq.items(), key=lambda x: x[1])[0]
-        
-        return numbers, strong_number
-    
-    def predict_pattern_based(self) -> Tuple[List[int], int]:
-        """Predict using pattern analysis."""
-        numbers = []
-        
-        even_count = random.choice([2, 3, 4])
-        odd_count = 6 - even_count
-        
-        available_numbers = list(range(1, 38))
-        random.shuffle(available_numbers)
-        
-        for num in available_numbers:
-            if len(numbers) >= 6:
-                break
-            
-            is_even = num % 2 == 0
-            
-            if is_even and even_count > 0:
-                numbers.append(num)
-                even_count -= 1
-            elif not is_even and odd_count > 0:
-                numbers.append(num)
-                odd_count -= 1
-        
-        while len(numbers) < 6:
-            num = random.randint(1, 37)
-            if num not in numbers:
-                numbers.append(num)
-        
-        numbers = sorted(numbers[:6])
-        
-        recent_strong = self.get_all_strong_numbers(limit=10)
-        strong_number = random.choice(recent_strong) if recent_strong else random.randint(1, 7)
-        
-        return numbers, strong_number
-    
-    def predict_statistical_average(self) -> Tuple[List[int], int]:
-        """Predict using statistical average."""
+            return overdue_numbers + random.sample([i for i in range(1, 38) if i not in overdue_numbers], 6 - len(overdue_numbers))[:6], 1
+
+    def predict_pattern_based(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_pattern_based)
+        # Select numbers with standard odd/even pattern (e.g. 3 odd, 3 even)
+        odds = random.sample([i for i in range(1, 38) if i % 2 != 0], 3)
+        evens = random.sample([i for i in range(1, 38) if i % 2 == 0], 3)
+        return odds + evens, 1
+
+    def predict_statistical_average(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_statistical_average)
         freq = self.frequency_analysis()
-        
-        avg_freq = sum(freq.values()) / len(freq) if freq else 1
-        
-        candidates = []
-        for num, count in freq.items():
-            if abs(count - avg_freq) <= avg_freq * 0.3:
-                candidates.append(num)
-        
-        if len(candidates) >= 6:
-            numbers = sorted(random.sample(candidates, 6))
-        else:
-            numbers = candidates + random.sample(
-                [i for i in range(1, 38) if i not in candidates],
-                6 - len(candidates)
-            )
-            numbers = sorted(numbers[:6])
-        
-        strong_freq = self.strong_number_frequency()
-        strong_avg = sum(strong_freq.values()) / len(strong_freq) if strong_freq else 1
-        strong_candidates = [num for num, count in strong_freq.items() 
-                           if abs(count - strong_avg) <= strong_avg * 0.3]
-        strong_number = random.choice(strong_candidates) if strong_candidates else random.randint(1, 7)
-        
-        return numbers, strong_number
-    
-    def predict_recent_trends(self) -> Tuple[List[int], int]:
-        """Predict based on very recent draws (last 5-10 draws only)."""
-        recent_draws = self.get_all_numbers(limit=10)
-        flat_numbers = [num for draw in recent_draws for num in draw]
-        recent_freq = Counter(flat_numbers)
-        
-        top_recent = sorted(recent_freq.items(), key=lambda x: x[1], reverse=True)[:12]
-        trending = [num for num, _ in top_recent]
-        
-        if len(trending) >= 6:
-            numbers = sorted(random.sample(trending, 6))
-        else:
-            numbers = trending + random.sample(
-                [i for i in range(1, 38) if i not in trending],
-                6 - len(trending)
-            )
-            numbers = sorted(numbers[:6])
-        
-        recent_strong = self.get_all_strong_numbers(limit=10)
-        strong_freq = Counter(recent_strong)
-        strong_number = strong_freq.most_common(1)[0][0] if strong_freq else random.randint(1, 7)
-        
-        return numbers, strong_number
-    
-    def predict_number_pairs(self) -> Tuple[List[int], int]:
-        """Predict using common number pair analysis."""
+        if not freq: return random.sample(range(1, 38), 6), 1
+        avg_freq = sum(freq.values()) / len(freq)
+        candidates = [num for num, count in freq.items() if abs(count - avg_freq) <= avg_freq * 0.35]
+        if len(candidates) < 6:
+            candidates = list(range(1, 38))
+        return random.sample(candidates, 6), 1
+
+    def predict_recent_trends(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_recent_trends)
+        recent_draws = self.get_all_numbers(limit=15)
+        flat = [num for draw in recent_draws for num in draw]
+        recent_freq = Counter(flat)
+        trending = [num for num, _ in recent_freq.most_common(16)]
+        return random.sample(trending, 6), 1
+
+    def predict_number_pairs(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_number_pairs)
         recent_draws = self.get_all_numbers(limit=100)
-        
         pairs = []
         for draw in recent_draws:
             for i in range(len(draw)):
                 for j in range(i + 1, len(draw)):
                     pairs.append(tuple(sorted([draw[i], draw[j]])))
-        
-        pair_freq = Counter(pairs)
-        top_pairs = pair_freq.most_common(10)
-        
-        numbers = []
+        top_pairs = Counter(pairs).most_common(20)
+        pair_numbers = []
         for pair, _ in top_pairs:
             for num in pair:
-                if num not in numbers:
-                    numbers.append(num)
-                if len(numbers) >= 6:
-                    break
-            if len(numbers) >= 6:
-                break
-        
-        while len(numbers) < 6:
-            num = random.randint(1, 37)
-            if num not in numbers:
-                numbers.append(num)
-        
-        numbers = sorted(numbers[:6])
-        
-        strong_freq = self.strong_number_frequency(limit=100)
-        strong_number = max(strong_freq.items(), key=lambda x: x[1])[0]
-        
-        return numbers, strong_number
-    
-    def predict_sum_based(self) -> Tuple[List[int], int]:
-        """Predict targeting the average sum of winning numbers."""
-        recent_draws = self.get_all_numbers(limit=100)
-        
-        sums = [sum(draw) for draw in recent_draws]
-        avg_sum = sum(sums) / len(sums)
-        target_sum = int(avg_sum)
-        
-        min_sum = target_sum - int(target_sum * 0.1)
-        max_sum = target_sum + int(target_sum * 0.1)
-        
-        attempts = 0
-        while attempts < 100:
-            numbers = sorted(random.sample(range(1, 38), 6))
-            current_sum = sum(numbers)
-            if min_sum <= current_sum <= max_sum:
-                break
-            attempts += 1
-        
-        strong_freq = self.strong_number_frequency(limit=100)
-        strong_number = max(strong_freq.items(), key=lambda x: x[1])[0]
-        
-        return numbers, strong_number
-    
-    def predict_odd_even_balanced(self) -> Tuple[List[int], int]:
-        """Predict with balanced odd/even distribution (3-3 split)."""
+                if num not in pair_numbers:
+                    pair_numbers.append(num)
+        selected = random.sample(pair_numbers, min(len(pair_numbers), 4))
+        others = [i for i in range(1, 38) if i not in selected]
+        selected += random.sample(others, 2)
+        return selected, 1
+
+    def predict_sum_based(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_sum_based)
+        return random.sample(range(1, 38), 6), 1
+
+    def predict_odd_even_balanced(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_odd_even_balanced)
         recent_draws = self.get_all_numbers(limit=50)
-        odd_freq = Counter()
-        even_freq = Counter()
-        
+        odd_f, even_f = Counter(), Counter()
         for draw in recent_draws:
-            for num in draw:
-                if num % 2 == 0:
-                    even_freq[num] += 1
-                else:
-                    odd_freq[num] += 1
-        
-        top_odds = [num for num, _ in odd_freq.most_common(10)]
-        top_evens = [num for num, _ in even_freq.most_common(10)]
-        
-        numbers = []
-        if len(top_odds) >= 3:
-            numbers.extend(random.sample(top_odds, 3))
-        else:
-            numbers.extend(top_odds)
-            odds = [i for i in range(1, 38, 2) if i not in numbers]
-            numbers.extend(random.sample(odds, 3 - len(top_odds)))
-        
-        if len(top_evens) >= 3:
-            numbers.extend(random.sample(top_evens, 3))
-        else:
-            numbers.extend(top_evens)
-            evens = [i for i in range(2, 38, 2) if i not in numbers]
-            numbers.extend(random.sample(evens, 3 - len(top_evens)))
-        
-        numbers = sorted(numbers[:6])
-        
-        strong_freq = self.strong_number_frequency(limit=50)
-        strong_number = random.choice(list(strong_freq.keys())) if strong_freq else random.randint(1, 7)
-        
-        return numbers, strong_number
-    
-    def predict_spread_distribution(self) -> Tuple[List[int], int]:
-        """Predict with even spread across number range (no clustering)."""
+            for n in draw:
+                if n % 2 == 0: even_f[n] += 1
+                else: odd_f[n] += 1
+        numbers = random.sample([n for n, _ in odd_f.most_common(12)], 3) + random.sample([n for n, _ in even_f.most_common(12)], 3)
+        return numbers, 1
+
+    def predict_spread_distribution(self, bypass_filters=False) -> Tuple[List[int], int]:
+        if not bypass_filters:
+            return self.get_valid_prediction(self.predict_spread_distribution)
         segment_size = 37 / 6
         numbers = []
-        
+        freq = self.frequency_analysis(limit=100)
         for i in range(6):
-            start = int(i * segment_size) + 1
-            end = int((i + 1) * segment_size)
-            
-            freq = self.frequency_analysis(limit=100)
-            segment_nums = {k: v for k, v in freq.items() if start <= k <= end}
-            
-            if segment_nums:
-                num = max(segment_nums.items(), key=lambda x: x[1])[0]
+            start, end = int(i * segment_size) + 1, int((i + 1) * segment_size)
+            seg_nums = {k: v for k, v in freq.items() if start <= k <= end}
+            top_seg = sorted(seg_nums.items(), key=lambda x: x[1], reverse=True)[:3]
+            if top_seg:
+                numbers.append(random.choice([item[0] for item in top_seg]))
             else:
-                num = random.randint(start, min(end, 37))
-            
-            numbers.append(num)
-        
-        numbers = sorted(numbers)
-        
-        strong_freq = self.strong_number_frequency(limit=100)
-        mid_strong = sorted(strong_freq.items(), key=lambda x: x[1])[len(strong_freq)//2] if strong_freq else (4, 0)
-        strong_number = mid_strong[0]
-        
-        return numbers, strong_number
+                numbers.append(random.randint(start, min(end, 37)))
+        while len(set(numbers)) < 6:
+            numbers.append(random.randint(1, 37))
+        return list(set(numbers)), 1
     
     def _set_variety_seed(self, variety: int, strategy_name: str):
         """Set random seed based on variety level."""

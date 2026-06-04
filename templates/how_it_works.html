@@ -162,6 +162,19 @@
         <p style="margin-top: 1rem; color: var(--text-muted);"><em>Lower variety is useful for comparing strategies, higher variety for generating many unique combinations.</em></p>
     </div>
 
+    <div class="info-box glass" style="margin-top: 2rem; border-left: 4px solid #22c55e;">
+        <h3 style="color: #22c55e; margin-top: 0;">🛡️ Advanced Statistical Filtering</h3>
+        <p>To improve prediction quality and ensure all generated lines are statistically viable, our engine now filters candidates through empirical checks before displaying them. Predictions must pass the following rules (which cover 80% to 95% of all historical winning draws):</p>
+        <ul style="margin-left: 1.5rem; color: var(--text-muted); line-height: 1.7;">
+            <li><strong style="color: var(--text-main);">Sum Range (80 - 150):</strong> Rejects combinations with sums that are too high or low (covers 86.8% of historical draws).</li>
+            <li><strong style="color: var(--text-main);">Parity (Odd/Even Split):</strong> Enforces a balanced distribution of 2:4, 3:3, or 4:2 (covers 79.9% of draws).</li>
+            <li><strong style="color: var(--text-main);">High/Low Distribution:</strong> Balances Low (1-18) and High (19-37) numbers with a 2:4, 3:3, or 4:2 split (covers 80.8% of draws).</li>
+            <li><strong style="color: var(--text-main);">Consecutive Check:</strong> Limits adjacent consecutive pairs (like 14 and 15) to a maximum of 1 (covers 82.4% of draws).</li>
+            <li><strong style="color: var(--text-main);">Previous Draw Repeats:</strong> Caps repeating numbers from the immediately preceding draw at a maximum of 2 (covers 95.4% of draws).</li>
+            <li><strong style="color: var(--text-main);">Strong Number Recency:</strong> Automatically targets and prioritizes highly overdue strong numbers.</li>
+        </ul>
+    </div>
+
     <div class="info-box glass" style="margin-top: 2rem; border-left: 4px solid #ef4444;">
         <h3 style="color: #ef4444; margin-top: 0;">⚠️ Important Disclaimer</h3>
         <p><strong>This is for entertainment purposes only.</strong> Lottery outcomes are completely random and unpredictable. No statistical method can guarantee winning numbers.</p>

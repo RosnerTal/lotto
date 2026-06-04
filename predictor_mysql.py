@@ -23,6 +23,7 @@ class LotteryPredictorMySQL:
     def __init__(self):
         self.conn = None
         self.cursor = None
+        self.current_variety = 100
     
     def connect(self):
         """Connect to MySQL database."""
@@ -204,13 +205,23 @@ class LotteryPredictorMySQL:
             
         # Select strong number using overdue strong numbers model
         strongs = self.get_all_strong_numbers()
-        last_seen = {i: 0 for i in range(1, 8)}
+        last_seen = {}
         for idx, sn in enumerate(strongs):
-            if sn in last_seen and last_seen[sn] == 0:
+            if sn not in last_seen:
                 last_seen[sn] = idx
+        for i in range(1, 8):
+            if i not in last_seen:
+                last_seen[i] = len(strongs)
                 
         sorted_overdue_sn = sorted(last_seen.items(), key=lambda x: x[1], reverse=True)
-        strong_number = random.choice([sorted_overdue_sn[0][0], sorted_overdue_sn[1][0]])
+        
+        # Pool size scales with variety:
+        # variety=0 -> pool size 2 (top 2 overdue)
+        # variety=50 -> pool size 4 (top 4 overdue)
+        # variety=100 -> pool size 7 (completely random selection from all 1-7)
+        pool_size = max(2, min(7, 2 + int(self.current_variety / 20)))
+        candidates = [item[0] for item in sorted_overdue_sn[:pool_size]]
+        strong_number = random.choice(candidates)
         
         return sorted(numbers), strong_number
 
@@ -351,6 +362,7 @@ class LotteryPredictorMySQL:
     
     def generate_predictions(self, num_predictions: int = 5, variety: int = 100) -> List[Dict]:
         """Generate multiple predictions (1-10)."""
+        self.current_variety = variety
         strategies = [
             ("Frequency Based (Hot Numbers)", self.predict_frequency_based),
             ("Balanced (Hot & Cold)", self.predict_balanced),

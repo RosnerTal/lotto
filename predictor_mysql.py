@@ -181,6 +181,23 @@ class LotteryPredictorMySQL:
             
         return True
 
+    def _get_ranked_strong_overdue(self) -> List[int]:
+        strongs = self.get_all_strong_numbers()
+        last_seen = {}
+        for idx, sn in enumerate(strongs):
+            if sn not in last_seen:
+                last_seen[sn] = idx
+        for i in range(1, 8):
+            if i not in last_seen:
+                last_seen[i] = len(strongs)
+        sorted_overdue = sorted(range(1, 8), key=lambda x: last_seen.get(x, len(strongs)), reverse=True)
+        return sorted_overdue
+
+    def _get_ranked_strong_frequency(self, limit: int = None) -> List[int]:
+        freq = self.strong_number_frequency(limit=limit)
+        sorted_freq = sorted(range(1, 8), key=lambda x: freq.get(x, 0), reverse=True)
+        return sorted_freq
+
     def get_valid_prediction(self, generate_base_func) -> Tuple[List[int], int]:
         draws = self.get_all_numbers(limit=1)
         prev_numbers = draws[0] if draws else []
@@ -191,8 +208,9 @@ class LotteryPredictorMySQL:
         # Try generating candidates until one passes
         found = False
         numbers = []
+        strong_candidates = []
         for _ in range(1000):  # limit to prevent infinite loop
-            numbers, _ = generate_base_func(bypass_filters=True)
+            numbers, strong_candidates = generate_base_func(bypass_filters=True)
             if self.passes_filters(numbers, prev_numbers):
                 found = True
                 break
@@ -201,41 +219,31 @@ class LotteryPredictorMySQL:
         
         if not found:
             # Fallback if no candidate passed
-            numbers, _ = generate_base_func(bypass_filters=True)
+            numbers, strong_candidates = generate_base_func(bypass_filters=True)
             
-        # Select strong number using overdue strong numbers model
-        strongs = self.get_all_strong_numbers()
-        last_seen = {}
-        for idx, sn in enumerate(strongs):
-            if sn not in last_seen:
-                last_seen[sn] = idx
-        for i in range(1, 8):
-            if i not in last_seen:
-                last_seen[i] = len(strongs)
-                
-        sorted_overdue_sn = sorted(last_seen.items(), key=lambda x: x[1], reverse=True)
-        
-        # Pool size scales with variety:
-        # variety=0 -> pool size 2 (top 2 overdue)
-        # variety=50 -> pool size 4 (top 4 overdue)
+        # Select strong number using the strategy's strong_candidates list
+        # variety=0 -> pool size 2 (top 2 candidates)
+        # variety=50 -> pool size 4 (top 4 candidates)
         # variety=100 -> pool size 7 (completely random selection from all 1-7)
         pool_size = max(2, min(7, 2 + int(self.current_variety / 20)))
-        candidates = [item[0] for item in sorted_overdue_sn[:pool_size]]
+        candidates = strong_candidates[:pool_size]
         strong_number = random.choice(candidates)
         
         return sorted(numbers), strong_number
 
     # Prediction strategies with filters and candidate generation
-    def predict_frequency_based(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_frequency_based(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_frequency_based)
         hot_numbers = self.get_hot_numbers(top_n=15, recent_draws=100)
         if len(hot_numbers) >= 6:
-            return random.sample(hot_numbers, 6), 1
+            numbers = random.sample(hot_numbers, 6)
         else:
-            return hot_numbers + random.sample([i for i in range(1, 38) if i not in hot_numbers], 6 - len(hot_numbers)), 1
+            numbers = hot_numbers + random.sample([i for i in range(1, 38) if i not in hot_numbers], 6 - len(hot_numbers))
+        strong_candidates = self._get_ranked_strong_frequency()
+        return numbers, strong_candidates
 
-    def predict_balanced(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_balanced(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_balanced)
         hot_numbers = self.get_hot_numbers(top_n=12, recent_draws=50)
@@ -244,47 +252,100 @@ class LotteryPredictorMySQL:
         while len(selected) < 6:
             num = random.randint(1, 37)
             if num not in selected: selected.append(num)
-        return selected[:6], 1
+            
+        # Weave hot and cold strong numbers:
+        sorted_by_freq = self._get_ranked_strong_frequency()
+        strong_candidates = []
+        left, right = 0, 6
+        while left <= right:
+            if left == right:
+                strong_candidates.append(sorted_by_freq[left])
+                break
+            strong_candidates.append(sorted_by_freq[left])
+            strong_candidates.append(sorted_by_freq[right])
+            left += 1
+            right -= 1
+        return selected[:6], strong_candidates
 
-    def predict_overdue(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_overdue(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_overdue)
         overdue = self.get_overdue_numbers(top_n=15)
         overdue_numbers = [num for num, _ in overdue]
         if len(overdue_numbers) >= 6:
-            return random.sample(overdue_numbers, 6), 1
+            numbers = random.sample(overdue_numbers, 6)
         else:
-            return overdue_numbers + random.sample([i for i in range(1, 38) if i not in overdue_numbers], 6 - len(overdue_numbers))[:6], 1
+            numbers = overdue_numbers + random.sample([i for i in range(1, 38) if i not in overdue_numbers], 6 - len(overdue_numbers))[:6]
+        strong_candidates = self._get_ranked_strong_overdue()
+        return numbers, strong_candidates
 
-    def predict_pattern_based(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_pattern_based(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_pattern_based)
         # Select numbers with standard odd/even pattern (e.g. 3 odd, 3 even)
         odds = random.sample([i for i in range(1, 38) if i % 2 != 0], 3)
         evens = random.sample([i for i in range(1, 38) if i % 2 == 0], 3)
-        return odds + evens, 1
+        
+        # Alternating odd/even strong numbers
+        strongs = self.get_all_strong_numbers(limit=1)
+        latest_sn = strongs[0] if strongs else 1
+        prefer_even = (latest_sn % 2 != 0)
+        
+        odds_list = [1, 3, 5, 7]
+        evens_list = [2, 4, 6]
+        
+        freq = self.strong_number_frequency()
+        sorted_odds = sorted(odds_list, key=lambda x: freq.get(x, 0), reverse=True)
+        sorted_evens = sorted(evens_list, key=lambda x: freq.get(x, 0), reverse=True)
+        
+        strong_candidates = []
+        if prefer_even:
+            for idx in range(4):
+                if idx < len(sorted_evens):
+                    strong_candidates.append(sorted_evens[idx])
+                if idx < len(sorted_odds):
+                    strong_candidates.append(sorted_odds[idx])
+        else:
+            for idx in range(4):
+                if idx < len(sorted_odds):
+                    strong_candidates.append(sorted_odds[idx])
+                if idx < len(sorted_evens):
+                    strong_candidates.append(sorted_evens[idx])
+                    
+        return odds + evens, strong_candidates
 
-    def predict_statistical_average(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_statistical_average(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_statistical_average)
         freq = self.frequency_analysis()
-        if not freq: return random.sample(range(1, 38), 6), 1
-        avg_freq = sum(freq.values()) / len(freq)
-        candidates = [num for num, count in freq.items() if abs(count - avg_freq) <= avg_freq * 0.35]
-        if len(candidates) < 6:
-            candidates = list(range(1, 38))
-        return random.sample(candidates, 6), 1
+        if not freq:
+            numbers = random.sample(range(1, 38), 6)
+        else:
+            avg_freq = sum(freq.values()) / len(freq)
+            candidates = [num for num, count in freq.items() if abs(count - avg_freq) <= avg_freq * 0.35]
+            if len(candidates) < 6:
+                candidates = list(range(1, 38))
+            numbers = random.sample(candidates, 6)
+            
+        # Rank strong numbers by closeness to average frequency
+        strong_freq = self.strong_number_frequency()
+        avg_strong_freq = sum(strong_freq.values()) / 7 if strong_freq else 0
+        strong_candidates = sorted(range(1, 8), key=lambda x: abs(strong_freq.get(x, 0) - avg_strong_freq))
+        
+        return numbers, strong_candidates
 
-    def predict_recent_trends(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_recent_trends(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_recent_trends)
         recent_draws = self.get_all_numbers(limit=15)
         flat = [num for draw in recent_draws for num in draw]
         recent_freq = Counter(flat)
         trending = [num for num, _ in recent_freq.most_common(16)]
-        return random.sample(trending, 6), 1
+        
+        strong_candidates = self._get_ranked_strong_frequency(limit=15)
+        return random.sample(trending, 6), strong_candidates
 
-    def predict_number_pairs(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_number_pairs(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_number_pairs)
         recent_draws = self.get_all_numbers(limit=100)
@@ -302,14 +363,40 @@ class LotteryPredictorMySQL:
         selected = random.sample(pair_numbers, min(len(pair_numbers), 4))
         others = [i for i in range(1, 38) if i not in selected]
         selected += random.sample(others, 2)
-        return selected, 1
+        
+        # Rank strong numbers by co-occurrence with selected numbers in the last 100 draws
+        self.cursor.execute(f"""
+            SELECT number1, number2, number3, number4, number5, number6, strong_number
+            FROM lottery_results
+            WHERE {self.CURRENT_SYSTEM_FILTER} AND {self.DATE_FILTER}
+            ORDER BY draw_date DESC
+            LIMIT 100
+        """)
+        rows = self.cursor.fetchall()
+        co_occurrences = {i: 0 for i in range(1, 8)}
+        numbers_set = set(selected)
+        for row in rows:
+            sn = row[6]
+            draw_numbers = row[:6]
+            intersection_size = len(numbers_set.intersection(set(draw_numbers)))
+            if intersection_size > 0:
+                co_occurrences[sn] = co_occurrences.get(sn, 0) + intersection_size
+        strong_candidates = sorted(range(1, 8), key=lambda x: co_occurrences.get(x, 0), reverse=True)
+        
+        return selected, strong_candidates
 
-    def predict_sum_based(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_sum_based(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_sum_based)
-        return random.sample(range(1, 38), 6), 1
+        numbers = random.sample(range(1, 38), 6)
+        
+        # Target total sum of 119
+        target_total = 119
+        current_sum = sum(numbers)
+        strong_candidates = sorted(range(1, 8), key=lambda x: abs(current_sum + x - target_total))
+        return numbers, strong_candidates
 
-    def predict_odd_even_balanced(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_odd_even_balanced(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_odd_even_balanced)
         recent_draws = self.get_all_numbers(limit=50)
@@ -319,9 +406,19 @@ class LotteryPredictorMySQL:
                 if n % 2 == 0: even_f[n] += 1
                 else: odd_f[n] += 1
         numbers = random.sample([n for n, _ in odd_f.most_common(12)], 3) + random.sample([n for n, _ in even_f.most_common(12)], 3)
-        return numbers, 1
+        
+        # Rank strong numbers to minimize the imbalance of the combined set
+        main_odds = sum(1 for n in numbers if n % 2 != 0)
+        def get_imbalance(sn):
+            total_odds = main_odds + (1 if sn % 2 != 0 else 0)
+            return abs(total_odds - 3.5)
+        
+        strong_freq = self.strong_number_frequency()
+        strong_candidates = sorted(range(1, 8), key=lambda x: (get_imbalance(x), -strong_freq.get(x, 0)))
+        
+        return numbers, strong_candidates
 
-    def predict_spread_distribution(self, bypass_filters=False) -> Tuple[List[int], int]:
+    def predict_spread_distribution(self, bypass_filters=False) -> Tuple[List[int], List[int]]:
         if not bypass_filters:
             return self.get_valid_prediction(self.predict_spread_distribution)
         segment_size = 37 / 6
@@ -337,7 +434,14 @@ class LotteryPredictorMySQL:
                 numbers.append(random.randint(start, min(end, 37)))
         while len(set(numbers)) < 6:
             numbers.append(random.randint(1, 37))
-        return list(set(numbers)), 1
+            
+        numbers_set = set(numbers)
+        # Rank strong numbers that are NOT in numbers first, and sub-sort by overdue status
+        overdue_list = self._get_ranked_strong_overdue()
+        overdue_rank = {sn: rank for rank, sn in enumerate(overdue_list)}
+        
+        strong_candidates = sorted(range(1, 8), key=lambda x: (x in numbers_set, overdue_rank.get(x, 0)))
+        return list(numbers_set), strong_candidates
     
     def _set_variety_seed(self, variety: int, strategy_name: str):
         """Set random seed based on variety level."""

@@ -3,7 +3,6 @@ Scraper using lottosheli.co.il Excel export API
 This can fetch multiple draws at once!
 """
 import requests
-import pandas as pd
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import io

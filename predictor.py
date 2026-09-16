@@ -12,6 +12,12 @@ _predictor_cache = None
 _predictor_cache_time = 0
 PREDICTOR_CACHE_TTL = 3600  # 1 hour
 
+def clear_predictor_cache():
+    """Invalidate predictor cache so predictions use the newest draws immediately."""
+    global _predictor_cache, _predictor_cache_time
+    _predictor_cache = None
+    _predictor_cache_time = 0
+
 class LotteryPredictor:
     def __init__(self):
         self.db = None

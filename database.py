@@ -9,6 +9,12 @@ _results_cache = None
 _cache_timestamp = 0
 CACHE_TTL = 3600  # 1 hour
 
+def clear_results_cache():
+    """Invalidate in-memory cache so newly added draws appear immediately."""
+    global _results_cache, _cache_timestamp
+    _results_cache = None
+    _cache_timestamp = 0
+
 class LotteryDatabase:
     def __init__(self):
         self._initialized = False
@@ -54,6 +60,7 @@ class LotteryDatabase:
                 'strong_number': strong_number,
                 'created_at': firestore.SERVER_TIMESTAMP
             })
+            clear_results_cache()
             return True
         except Exception as e:
             print(f"Error adding result: {e}")

@@ -35,6 +35,13 @@ def index():
     if not DATABASE_READY:
         return "Database Error - Please check logs", 500
     try:
+        # Trigger background check if due (> 2 hours since last check)
+        try:
+            from auto_updater import maybe_trigger_auto_update_async
+            maybe_trigger_auto_update_async()
+        except Exception as upd_err:
+            print(f"Notice: background update trigger error: {upd_err}")
+            
         db = LotteryDatabase()
         db.connect()
         latest_results = db.get_latest_results(limit=10)
@@ -242,10 +249,11 @@ def start_scheduler():
             from auto_updater import check_and_import_all_missing
             
             scheduler = BackgroundScheduler(timezone='Asia/Jerusalem')
-            scheduler.add_job(func=check_and_import_all_missing, trigger="cron", hour=0, minute=5, id='lotto_updater')
+            # Run multiple times daily to catch both weekday and weekend draws
+            scheduler.add_job(func=check_and_import_all_missing, trigger="cron", hour="0,6,12,18,23", minute=5, id='lotto_updater')
             scheduler.start()
             scheduler_running = True
-            print("Background scheduler started successfully (Daily at 00:05 Israel Time).")
+            print("Background scheduler started successfully (Israel Time).")
             
             # Run once immediately in background
             import threading
@@ -260,6 +268,13 @@ if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
 @app.route('/api/auto_updater/status')
 def auto_updater_status():
     global scheduler_running
+    # Also trigger background check if due
+    try:
+        from auto_updater import maybe_trigger_auto_update_async
+        maybe_trigger_auto_update_async()
+    except Exception as e:
+        print(f"Notice: updater trigger error in status: {e}")
+        
     last_update = "Never"
     try:
         from database import LotteryDatabase

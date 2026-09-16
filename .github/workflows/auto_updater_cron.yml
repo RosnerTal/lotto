@@ -1,0 +1,24 @@
+name: Automated Lottery Results Updater
+
+on:
+  schedule:
+    # Runs at 21:30 UTC (00:30 Israel Time) every day
+    - cron: '30 21 * * *'
+    # Runs at 09:30 UTC (12:30 Israel Time) every day as a safety check
+    - cron: '30 9 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  update_results:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Lottery Auto-Updater Endpoint
+        run: |
+          echo "Triggering /api/cron/update on LottoFire..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "https://lotto-bc9e0.web.app/api/cron/update?key=Xhknrhkhui")
+          echo "Response: $RESPONSE"
+          if echo "$RESPONSE" | grep -q "HTTP_STATUS:200"; then
+            echo "Auto-update succeeded!"
+          else
+            echo "Warning: Received non-200 status code"
+          fi

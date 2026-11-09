@@ -11,6 +11,9 @@ on:
 jobs:
   update_results:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
     steps:
       - name: Trigger Lottery Auto-Updater Endpoint
         run: |
@@ -22,3 +25,11 @@ jobs:
           else
             echo "Warning: Received non-200 status code"
           fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Prevent Workflow Disabling (Keepalive every 45 days)
+        uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          time_elapsed: 45

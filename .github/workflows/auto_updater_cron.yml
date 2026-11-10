@@ -28,8 +28,26 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v4
-
-      - name: Prevent Workflow Disabling (Keepalive every 45 days)
-        uses: gautamkrishnar/keepalive-workflow@v2
         with:
-          time_elapsed: 45
+          fetch-depth: 0
+
+      - name: Keepalive Activity (Every 45 Days)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          LAST_COMMIT_DATE=$(git log -1 --format=%ct)
+          CURRENT_DATE=$(date +%s)
+          DAYS_DIFF=$(( (CURRENT_DATE - LAST_COMMIT_DATE) / 86400 ))
+          echo "Days since last commit: $DAYS_DIFF"
+          
+          if [ $DAYS_DIFF -ge 45 ]; then
+            echo "45 days elapsed without commit activity. Creating automated keepalive push..."
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            echo "Last keepalive: $(date -u)" > .github/keepalive.txt
+            git add .github/keepalive.txt
+            git commit -m "chore(ci): keepalive activity [skip ci]"
+            git push origin main || git push -f origin HEAD:keepalive
+          else
+            echo "Repository has recent activity ($DAYS_DIFF days old < 45 days threshold). No keepalive push needed."
+          fi
